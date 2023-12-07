@@ -1,0 +1,6 @@
+class Point
+  def + Point{x, y} ->
+    Point{x: (self :x) + x, y: (self :y) + y}.
+.
+
+Point{x: 10, y: 10} + Point{x: 10, y: 11}.

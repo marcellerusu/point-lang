@@ -1,0 +1,16 @@
+class ShortString
+  def ^require string -> string :length. < 10. 
+end
+
+class String
+  def Object[object] -> object self
+  def ...strings -> self + (strings :reduce + "").
+end
+
+class Point
+  def :to_s -> "Point{" (self :x) (self :y) "}".
+end
+
+p = Point{x: 10, y: 10} :plus Point{x: 10, y: 11}.
+
+console :log (p :to_s).

@@ -64,3 +64,13 @@ let Pnt = {
     throw "no method found";
   },
 };
+
+let Int = {
+  [Pnt.methods]: [
+    {
+      patterns: [Pnt.operator["+"], Pnt.patterns.id],
+      fn: (self, _, { [Pnt.properties]: { value } }) =>
+        Pnt.construct(Int, { value: self[Pnt.properties].value + value }),
+    },
+  ],
+};

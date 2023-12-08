@@ -4,6 +4,8 @@ class Tokenizer {
     [/^def\b/, "def"],
     [/^\{/, "{"],
     [/^\}/, "}"],
+    [/^\(/, "("],
+    [/^\)/, ")"],
     [/^\./, "."],
     [/^\,/, ","],
     [/^\-\>/, "->"],
@@ -43,13 +45,15 @@ class Tokenizer {
 
   tokenize() {
     let output = [];
+    let line = 1;
     while (this.idx < this.program_string.length) {
       this.scan(/^\s+/);
+      line += this.match?.match(/\n/g)?.length ?? 0;
 
       let found = false;
       for (let [regex, type] of Tokenizer.TOKENS) {
         if (this.scan(regex)) {
-          output.push({ type, value: this.match });
+          output.push({ type, value: this.match, line });
           found = true;
         }
       }
@@ -80,6 +84,10 @@ class Parser {
     );
   }
 
+  not(...token_types) {
+    return !token_types.includes(this.current_token.type);
+  }
+
   consume(type) {
     if (this.current_token.type === type) {
       let token = this.current_token;
@@ -91,29 +99,36 @@ class Parser {
   parse() {
     let ast = [];
     while (this.current_token) {
-      let expr = this.parse_expr();
-      if (this.scan(".")) {
-        this.consume(".");
-        ast.push(expr);
-      } else {
-        let args = [];
-        while (!this.scan(".")) {
-          args.push(this.parse_expr());
-        }
-        ast.push({ type: "method_call", lhs: expr, args });
-        this.consume(".");
-      }
+      ast.push(this.parse_expr());
     }
     return ast;
   }
 
   parse_expr() {
+    let expr = this.parse_single_expr();
+    if (this.scan(".")) {
+      this.consume(".");
+      return expr;
+    } else {
+      let current_line = this.current_token?.line;
+      while (this.current_token?.line === current_line) {
+        let args = [];
+        while (this.not(".", ",", ")", "}")) {
+          args.push(this.parse_single_expr());
+        }
+        if (args.length === 0) {
+          break;
+        }
+        expr = { type: "method_call", lhs: expr, args };
+        this.consume(".");
+      }
+      return expr;
+    }
+  }
+
+  parse_single_expr() {
     if (this.scan("class")) {
       return this.parse_class();
-    } else if (this.scan("id", "{")) {
-      return this.parse_record_constructor();
-    } else if (this.scan("id")) {
-      return this.parse_id();
     } else if (this.scan("keyword")) {
       return this.parse_keyword();
     } else if (this.scan("def")) {
@@ -122,12 +137,25 @@ class Parser {
       return this.parse_int();
     } else if (this.scan("string")) {
       return this.parse_string();
+    } else if (this.scan("(")) {
+      return this.parse_paren_expr();
+    } else if (this.scan("id", "{")) {
+      return this.parse_record_constructor();
+    } else if (this.scan("id")) {
+      return this.parse_id();
     } else if (OPERATORS.includes(this.current_token.type)) {
       return this.parse_operator();
     } else {
       console.log(this.index, this.tokens.slice(this.index));
       throw "wtf";
     }
+  }
+
+  parse_paren_expr() {
+    this.consume("(");
+    let expr = this.parse_expr();
+    this.consume(")");
+    return { type: "paren_expr", expr };
   }
 
   parse_int() {
@@ -173,7 +201,7 @@ class Parser {
   }
 
   parse_pattern() {
-    return this.parse_expr();
+    return this.parse_single_expr();
   }
 
   parse_def() {
@@ -184,7 +212,6 @@ class Parser {
     }
     this.consume("->");
     let return_expr = this.parse_expr();
-    this.consume(".");
     return { type: "def", patterns, return_expr };
   }
 
@@ -236,13 +263,19 @@ class Compiler {
       return this.eval_operator(node);
     } else if (node.type === "int") {
       return this.eval_int(node);
+    } else if (node.type === "paren_expr") {
+      return this.eval_paren_expr(node);
     } else {
       throw "unmatched case for eval node";
     }
   }
 
+  eval_paren_expr({ expr }) {
+    return `(${this.eval_node(expr)})`;
+  }
+
   eval_int({ value }) {
-    return value;
+    return `Pnt.construct(Int, {value: ${value}})`;
   }
 
   eval_operator({ op }) {
@@ -252,7 +285,7 @@ class Compiler {
   eval_method_call({ lhs, args }) {
     return `Pnt.call(${this.eval_node(lhs)}, ${args
       .map((arg) => this.eval_node(arg))
-      .join(", ")});`;
+      .join(", ")})`;
   }
 
   eval_record_constructor({ kw_args, class_name }) {
@@ -314,12 +347,14 @@ ${name}[Pnt.methods].push(${defs.map((def) => this.eval_def(def)).join(", ")})
   }
 }
 
-let program = `
-class Point
-  def + other -> other.
+// -- todo: these fails to parse:
+// Point{x: other. :x}
+
+let program = `class Point
+  def + other -> Point{x: (self :x) + (other :x), y: (self :x) + (other :y)}.
 .
 
-Point{x: 1, y: 2} + Point{x: 2, y: 3}.
+Point{x: 1, y: 1} + Point{x: 1, y: 2}.
 `;
 
 let tokens = new Tokenizer(program).tokenize();

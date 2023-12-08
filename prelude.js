@@ -1,5 +1,6 @@
 let Pnt = {
   proto: Symbol("proto"),
+  class_name: Symbol("class_name"),
   properties: Symbol("properties"),
   methods: Symbol("methods"),
   operator: {
@@ -14,6 +15,10 @@ let Pnt = {
   },
   patterns: {
     id() {},
+    record_constructor: function RecordConstructor(name, properties) {
+      this.name = name;
+      this.properties = properties;
+    },
   },
   Keyword: class {
     constructor(name) {
@@ -35,11 +40,20 @@ let Pnt = {
       [Pnt.properties]: properties,
     };
   },
+  is_pnt_object(obj) {
+    return Pnt.proto in obj && Pnt.properties in obj;
+  },
   match(pattern, arg) {
     if (pattern === arg) {
       return true;
     } else if (pattern === Pnt.patterns.id) {
       return true;
+    } else if (pattern instanceof this.patterns.record_constructor) {
+      return (
+        this.is_pnt_object(arg) &&
+        arg[Pnt.proto][Pnt.class_name] === pattern.name &&
+        pattern.properties.every((key) => key in arg[Pnt.properties])
+      );
     } else {
       return false;
     }

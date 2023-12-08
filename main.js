@@ -200,8 +200,24 @@ class Parser {
     return { type: "record_constructor", kw_args, class_name };
   }
 
+  parse_record_constructor_pattern() {
+    let name = this.consume("id");
+    this.consume("{");
+    let properties = [];
+    while (!this.scan("}")) {
+      properties.push(this.consume("id"));
+      if (!this.scan("}")) this.consume(",");
+    }
+    this.consume("}");
+    return { type: "record_constructor_pattern", name, properties };
+  }
+
   parse_pattern() {
-    return this.parse_single_expr();
+    if (this.scan("id", "{")) {
+      return this.parse_record_constructor_pattern();
+    } else {
+      return this.parse_single_expr();
+    }
   }
 
   parse_def() {
@@ -315,6 +331,8 @@ class Compiler {
       return `_${(Math.random() * 100).toFixed(0)}`;
     } else if (node.type === "id") {
       return node.value;
+    } else if (node.type === "record_constructor_pattern") {
+      return `{[Pnt.properties]: {${node.properties.join(", ")}}}`;
     } else {
       throw "unknown pattern for arg";
     }
@@ -326,9 +344,17 @@ class Compiler {
       return this.eval_node(node);
     } else if (node.type === "id") {
       return "Pnt.patterns.id";
+    } else if (node.type === "record_constructor_pattern") {
+      return this.eval_record_constructor_pattern(node);
     } else {
       throw "invalid pattern";
     }
+  }
+
+  eval_record_constructor_pattern({ name, properties }) {
+    return `new Pnt.patterns.record_constructor("${name}", [${properties
+      .map((name) => `"${name}"`)
+      .join(", ")}])`;
   }
 
   eval_def({ patterns, return_expr }) {
@@ -341,7 +367,7 @@ class Compiler {
 
   eval_class({ name, defs }) {
     return `
-${name} ||= {[Pnt.methods]: []};
+${name} ||= {[Pnt.methods]: [], [Pnt.class_name]: '${name}'};
 ${name}[Pnt.methods].push(${defs.map((def) => this.eval_def(def)).join(", ")})
     `;
   }
@@ -351,7 +377,8 @@ ${name}[Pnt.methods].push(${defs.map((def) => this.eval_def(def)).join(", ")})
 // Point{x: other. :x}
 
 let program = `class Point
-  def + other -> Point{x: (self :x) + (other :x), y: (self :x) + (other :y)}.
+  def + Point{x, y} ->
+    Point{x: (self :x) + x, y: (self :x) + y}.
 .
 
 Point{x: 1, y: 1} + Point{x: 1, y: 2}.
@@ -363,4 +390,5 @@ let output = new Compiler(ast).eval();
 // console.log(tokens);
 // console.log(ast);
 // console.log(output);
+// console.log(Compiler.prelude + output);
 console.log(eval(Compiler.prelude + output));

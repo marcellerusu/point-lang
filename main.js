@@ -5,6 +5,7 @@ class Tokenizer {
     [/^\{/, "{"],
     [/^\}/, "}"],
     [/^\./, "."],
+    [/^\,/, ","],
     [/^\-\>/, "->"],
     [/^\*\*/, "**"],
     [/^\*/, "*"],
@@ -14,8 +15,10 @@ class Tokenizer {
     [/^\-/, "-"],
     [/^\//, "/"],
     [/^\%/, "%"],
+    [/^\d+/, "int"],
     [/^[a-zA-Z0-9?!]+\b/, "id"],
     [/^\:[a-zA-Z0-9?!]+\b/, "keyword"],
+    [/^\:/, ":"],
     [/^"[^".]*"/, "string"],
   ]);
 
@@ -43,10 +46,16 @@ class Tokenizer {
     while (this.idx < this.program_string.length) {
       this.scan(/^\s+/);
 
+      let found = false;
       for (let [regex, type] of Tokenizer.TOKENS) {
         if (this.scan(regex)) {
           output.push({ type, value: this.match });
+          found = true;
         }
+      }
+      if (!found && this.rest_of_string().trim().length > 0) {
+        console.log(this.rest_of_string());
+        throw "tokenizer failed";
       }
     }
     return output;
@@ -109,6 +118,8 @@ class Parser {
       return this.parse_keyword();
     } else if (this.scan("def")) {
       return this.parse_def();
+    } else if (this.scan("int")) {
+      return this.parse_int();
     } else if (this.scan("string")) {
       return this.parse_string();
     } else if (OPERATORS.includes(this.current_token.type)) {
@@ -117,6 +128,11 @@ class Parser {
       console.log(this.index, this.tokens.slice(this.index));
       throw "wtf";
     }
+  }
+
+  parse_int() {
+    let num = this.consume("int");
+    return { type: "int", value: num };
   }
 
   parse_operator() {
@@ -143,9 +159,17 @@ class Parser {
   parse_record_constructor() {
     let class_name = this.consume("id");
     this.consume("{");
+    let kw_args = {};
+    while (!this.scan("}")) {
+      let name = this.consume("id");
+      this.consume(":");
+      let value = this.parse_expr();
+      kw_args[name] = value;
+      this.consume(",");
+    }
     // todo: arguments
     this.consume("}");
-    return { type: "record_constructor", kw_args: {}, class_name };
+    return { type: "record_constructor", kw_args, class_name };
   }
 
   parse_pattern() {
@@ -210,9 +234,15 @@ class Compiler {
       return this.eval_method_call(node);
     } else if (node.type === "operator") {
       return this.eval_operator(node);
+    } else if (node.type === "int") {
+      return this.eval_int(node);
     } else {
       throw "unmatched case for eval node";
     }
+  }
+
+  eval_int({ value }) {
+    return value;
   }
 
   eval_operator({ op }) {
@@ -227,7 +257,9 @@ class Compiler {
 
   eval_record_constructor({ kw_args, class_name }) {
     // TODO: kw_args
-    return `Pnt.construct(${class_name}, {})`;
+    return `Pnt.construct(${class_name}, {${Object.entries(kw_args)
+      .map(([name, value]) => `'${name}': ${this.eval_node(value)}`)
+      .join(", ")}})`;
   }
 
   eval_id({ value }) {
@@ -283,16 +315,17 @@ ${name}[Pnt.methods].push(${defs.map((def) => this.eval_def(def)).join(", ")})
 }
 
 let program = `
-class Hello
-  def + "world" -> "Hey there".
+class Point
+  def + other -> other.
 .
 
-Hello{} + "world".
+Point{x: 1, y: 2} + Point{x: 2, y: 3}.
 `;
 
 let tokens = new Tokenizer(program).tokenize();
 let ast = new Parser(tokens).parse();
 let output = new Compiler(ast).eval();
-// console.log(ast[0]);
+// console.log(tokens);
+// console.log(ast);
 // console.log(output);
 console.log(eval(Compiler.prelude + output));

@@ -45,6 +45,14 @@ let Pnt = {
     }
   },
   call(pnt_object, ...args) {
+    if (
+      args.length === 1 &&
+      args[0] instanceof this.Keyword &&
+      typeof pnt_object[Pnt.properties][args[0].name] !== "undefined"
+    ) {
+      return pnt_object[Pnt.properties][args[0].name];
+    }
+
     for (let { patterns, fn } of pnt_object[Pnt.proto][Pnt.methods]) {
       if (
         args.length === patterns.length &&

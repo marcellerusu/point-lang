@@ -6,6 +6,14 @@ class Tokenizer {
     [/^\}/, "}"],
     [/^\./, "."],
     [/^\-\>/, "->"],
+    [/^\*\*/, "**"],
+    [/^\*/, "*"],
+    [/^\&\&/, "&&"],
+    [/^\|\|/, "||"],
+    [/^\+/, "+"],
+    [/^\-/, "-"],
+    [/^\//, "/"],
+    [/^\%/, "%"],
     [/^[a-zA-Z0-9?!]+\b/, "id"],
     [/^\:[a-zA-Z0-9?!]+\b/, "keyword"],
     [/^"[^".]*"/, "string"],
@@ -44,6 +52,8 @@ class Tokenizer {
     return output;
   }
 }
+
+const OPERATORS = ["&&", "||", "**", "*", "-", "+", "/", "%"];
 
 class Parser {
   index = 0;
@@ -101,10 +111,18 @@ class Parser {
       return this.parse_def();
     } else if (this.scan("string")) {
       return this.parse_string();
+    } else if (OPERATORS.includes(this.current_token.type)) {
+      return this.parse_operator();
     } else {
       console.log(this.index, this.tokens.slice(this.index));
       throw "wtf";
     }
+  }
+
+  parse_operator() {
+    let { value } = this.current_token;
+    this.index += 1;
+    return { type: "operator", op: value };
   }
 
   parse_string() {
@@ -190,9 +208,15 @@ class Compiler {
       return this.eval_record_constructor(node);
     } else if (node.type === "method_call") {
       return this.eval_method_call(node);
+    } else if (node.type === "operator") {
+      return this.eval_operator(node);
     } else {
       throw "unmatched case for eval node";
     }
+  }
+
+  eval_operator({ op }) {
+    return `Pnt.operator['${op}']`;
   }
 
   eval_method_call({ lhs, args }) {
@@ -221,7 +245,7 @@ class Compiler {
   pattern_to_arg(node) {
     if (node.type === "keyword") {
       return `_${node.value}`;
-    } else if (node.type === "string") {
+    } else if (["string", "operator"].includes(node.type)) {
       // just garbage, js doesn't allow multiple _ vars
       return `_${(Math.random() * 100).toFixed(0)}`;
     } else if (node.type === "id") {
@@ -232,7 +256,7 @@ class Compiler {
   }
 
   eval_pattern(node) {
-    let literals = ["string", "keyword", "int", "float"];
+    let literals = ["string", "keyword", "int", "float", "operator"];
     if (literals.includes(node.type)) {
       return this.eval_node(node);
     } else if (node.type === "id") {
@@ -260,14 +284,15 @@ ${name}[Pnt.methods].push(${defs.map((def) => this.eval_def(def)).join(", ")})
 
 let program = `
 class Hello
-  def name "world" -> name.
+  def + "world" -> "Hey there".
 .
 
-Hello{} :hey "world".
+Hello{} + "world".
 `;
 
 let tokens = new Tokenizer(program).tokenize();
 let ast = new Parser(tokens).parse();
 let output = new Compiler(ast).eval();
-// console.log(Compiler.prelude + output);
+// console.log(ast[0]);
+// console.log(output);
 console.log(eval(Compiler.prelude + output));

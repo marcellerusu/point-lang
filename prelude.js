@@ -2,6 +2,16 @@ let Pnt = {
   proto: Symbol("proto"),
   properties: Symbol("properties"),
   methods: Symbol("methods"),
+  operator: {
+    "&&": Symbol("&&"),
+    "||": Symbol("||"),
+    "**": Symbol("**"),
+    "*": Symbol("*"),
+    "-": Symbol("-"),
+    "+": Symbol("+"),
+    "/": Symbol("/"),
+    "%": Symbol("%"),
+  },
   patterns: {
     id() {},
   },

@@ -2,6 +2,17 @@
 
 A perverse misunderstanding of object oriented programming
 
+# A Real Working Example
+
+```
+class Point
+  def + Point{x, y} ->
+    Point{x: self :x. + x, y: self :y. + y}.
+.
+
+Point{x: 10, y: 10} + Point{x: 10, y: 11}.
+```
+
 # FizzBuzz
 
 Let's start with a sane simple question, fizz buzz. If a number is divisible by 3 print fizz, 5 print buzz, 15 print fizzbuzz. How would we go about this in pnt?

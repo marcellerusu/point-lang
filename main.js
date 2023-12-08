@@ -376,13 +376,7 @@ ${name}[Pnt.methods].push(${defs.map((def) => this.eval_def(def)).join(", ")})
 // -- todo: these fails to parse:
 // Point{x: other. :x}
 
-let program = `class Point
-  def + Point{x, y} ->
-    Point{x: (self :x) + x, y: (self :x) + y}.
-.
-
-Point{x: 1, y: 1} + Point{x: 1, y: 2}.
-`;
+let program = Deno.readTextFileSync("./test.pnt");
 
 let tokens = new Tokenizer(program).tokenize();
 let ast = new Parser(tokens).parse();

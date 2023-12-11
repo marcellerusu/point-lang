@@ -358,11 +358,15 @@ class Compiler {
   }
 
   eval_def({ patterns, return_expr }) {
-    return `{ patterns: [${patterns
+    let patterns_js = patterns
       .map((pattern) => this.eval_pattern(pattern))
-      .join(", ")}], fn: (self, ${patterns
+      .join(", ");
+    let args_js = patterns
       .map((pattern) => this.pattern_to_arg(pattern))
-      .join(", ")}) => ${this.eval_node(return_expr)} }`;
+      .join(", ");
+    let return_js = this.eval_node(return_expr);
+
+    return `{ patterns: [${patterns_js}], fn: (self, ${args_js}) => ${return_js} }`;
   }
 
   eval_class({ name, defs }) {

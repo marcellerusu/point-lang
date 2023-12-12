@@ -16,5 +16,5 @@ fn main() {
 
     // println!("AST! {:?}", ast);
 
-    interpret(ast)
+    println!("{:?}", interpret(ast));
 }

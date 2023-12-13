@@ -14,6 +14,7 @@ enum Function {
 pub enum Object {
     Nil,
     Keyword(String),
+    Str(String),
     Int(usize),
 }
 
@@ -72,30 +73,26 @@ fn to_object(node: &Node) -> Object {
     }
 }
 
-pub fn interpret(ast: Vec<Node>) -> Object {
+fn method_call(lhs: &Node, args: &Vec<Node>) -> Object {
     let keyword_class = keyword_class();
+
+    match (lhs, args) {
+        (Node::Keyword(keyword), args) => {
+            let arg_objects: Vec<Object> = args.iter().map(|node| to_object(node)).collect();
+            let native_fn = keyword_class.methods.get(&arg_objects).unwrap();
+
+            run_native_fn(Object::Keyword(keyword.to_string()), native_fn)
+        }
+        _ => panic!("unknown method"),
+    }
+}
+
+pub fn interpret(ast: Vec<Node>) -> Object {
     let mut result: Object = Object::Nil;
+    println!("{:?}", ast);
+
     ast.iter().for_each(|node| match node {
-        Node::MethodCall(lhs, args) => match (lhs.as_ref(), args) {
-            (Node::Keyword(keyword), args) => {
-                let arg_objects: Vec<Object> = args.iter().map(|node| to_object(node)).collect();
-
-                let (_, native_fn) = keyword_class
-                    .methods
-                    .iter()
-                    .find(|(args, _)| {
-                        args.len() == arg_objects.len()
-                            && args
-                                .iter()
-                                .zip(arg_objects.clone())
-                                .all(|(arg, o)| arg.eq(&o))
-                    })
-                    .unwrap();
-
-                result = run_native_fn(Object::Keyword(keyword.to_string()), native_fn);
-            }
-            _ => panic!("unknown method"),
-        },
+        Node::MethodCall(lhs, args) => result = method_call(lhs.as_ref(), args),
         Node::Keyword(_) => todo!("keyword"),
     });
     result

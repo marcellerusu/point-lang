@@ -1,9 +1,12 @@
-use crate::lexer::{Token, TokenType};
+use crate::lexer::Token;
 
 #[derive(Debug, PartialEq)]
 pub enum Node {
     Keyword(String),
+    Class(String, Vec<(Vec<Node>, Node)>),
     MethodCall(Box<Node>, Vec<Node>),
+    RecordConstructor(String, Vec<(String, Node)>),
+    Int(usize),
 }
 
 #[derive(Clone)]
@@ -13,66 +16,100 @@ pub struct Parser {
 }
 
 impl Parser {
-    fn current_token(self: &Parser) -> Option<&Token> {
-        self.tokens.get(self.idx)
-    }
-
-    fn scan(self: &Parser, token_kind: TokenType) -> bool {
-        match self.current_token() {
-            Some(token) => token.kind == token_kind,
-            None => false,
-        }
-    }
-
-    fn consume(self: &mut Parser, token_kind: TokenType) -> Option<String> {
-        if let Some(token) = self.clone().current_token() {
-            if token.kind == token_kind {
-                self.idx += 1;
-                token.value.clone()
-            } else {
-                panic!("invalid token type")
-            }
-        } else {
-            panic!("no token!")
-        }
-    }
-
-    pub fn parse(self: &mut Parser) -> Vec<Node> {
+    pub fn parse(&mut self) -> Vec<Node> {
         let mut ast: Vec<Node> = vec![];
 
-        while self.current_token().is_some() {
+        while self.tokens.get(self.idx).is_some() {
             ast.push(self.parse_expr());
         }
 
         ast
     }
 
-    fn parse_expr(self: &mut Parser) -> Node {
+    fn scan<T>(&mut self, get: fn(&Token) -> Option<T>) -> bool {
+        if let Some(_) = get(self.tokens.get(self.idx).unwrap()) {
+            true
+        } else {
+            false
+        }
+    }
+
+    fn consume<T>(&mut self, get: fn(&Token) -> Option<T>) -> T {
+        if let Some(v) = get(self.tokens.get(self.idx).unwrap()) {
+            self.idx += 1;
+            v
+        } else {
+            println!("{:?} {:?}", get, self.tokens.get(self.idx..));
+            panic!("invalid")
+        }
+    }
+
+    fn parse_expr(&mut self) -> Node {
         let expr = self.parse_single_expr();
 
-        if self.scan(TokenType::Dot) {
+        if self.scan(|t| t.as_dot()) {
+            self.consume(|t| t.as_dot());
             expr
         } else {
             let mut args: Vec<Node> = vec![];
-            while !self.scan(TokenType::Dot) {
+            while self.scan(|t| t.as_dot()) {
                 args.push(self.parse_single_expr());
             }
-            self.consume(TokenType::Dot);
+            self.consume(|t| t.as_dot());
 
             Node::MethodCall(Box::new(expr), args)
         }
     }
 
-    fn parse_single_expr(self: &mut Parser) -> Node {
-        if self.scan(TokenType::Keyword) {
+    fn parse_single_expr(&mut self) -> Node {
+        if self.scan(|t| t.as_keyword()) {
             self.parse_keyword()
+        } else if self.scan(|t| t.as_class()) {
+            self.parse_class()
+        } else if self.scan(|t| t.as_int()) {
+            self.parse_int()
+        } else if let Some([Token::Id(_), Token::OpenBrace]) =
+            self.tokens.get(self.idx..(self.idx + 2))
+        {
+            self.parse_record_constructor()
         } else {
+            println!("{:?}", self.tokens.get(self.idx..));
             panic!("no expr found")
         }
     }
 
-    fn parse_keyword(self: &mut Parser) -> Node {
-        let name = self.consume(TokenType::Keyword).unwrap();
-        Node::Keyword(name)
+    fn parse_int(&mut self) -> Node {
+        let val = self.consume(|t| t.as_int());
+        Node::Int(val)
+    }
+
+    fn parse_record_constructor(&mut self) -> Node {
+        let name = self.consume(|t| t.as_id());
+        self.consume(|t| t.as_open_brace());
+        let mut properties: Vec<(String, Node)> = vec![];
+
+        while !self.scan(|t| t.as_close_brace()) {
+            let name = self.consume(|t| t.as_id());
+            self.consume(|t| t.as_colon());
+            // TODO: should be able to do self.parse_expr() here.
+            properties.push((name.clone(), self.parse_single_expr()));
+            if !self.scan(|t| t.as_close_brace()) {
+                self.consume(|t| t.as_comma());
+            }
+        }
+        self.consume(|t| t.as_close_brace());
+
+        Node::RecordConstructor(name.clone(), properties)
+    }
+
+    fn parse_class(&mut self) -> Node {
+        self.consume(|t| t.as_class());
+        let name = self.consume(|t| t.as_id());
+        Node::Class(name.clone(), vec![])
+    }
+
+    fn parse_keyword(&mut self) -> Node {
+        let name = self.consume(|t| t.as_keyword());
+        Node::Keyword(name.clone())
     }
 }

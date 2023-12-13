@@ -1,11 +1,18 @@
-use crate::interpreter::interpret;
+// use crate::interpreter::interpret;
 
-pub mod interpreter;
+// pub mod interpreter;
 pub mod lexer;
 pub mod parser;
 
 fn main() {
-    let test_program = String::from(":hello :log.");
+    let test_program = String::from(
+        "
+    class Point.
+
+    Point{x: 1, y: 1}.
+    ",
+    );
+
     let tokens = lexer::tokenize(test_program);
     // println!("Tokens! {:?}", tokens);
     let ast = parser::Parser {
@@ -14,7 +21,7 @@ fn main() {
     }
     .parse();
 
-    // println!("AST! {:?}", ast);
+    println!("AST! {:?}", ast);
 
-    println!("{:?}", interpret(ast));
+    // println!("{:?}", interpret(ast));
 }

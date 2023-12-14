@@ -1,6 +1,6 @@
 use crate::lexer::Token;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Node {
     Keyword(String),
     Class(String, Vec<(Vec<Node>, Node)>),

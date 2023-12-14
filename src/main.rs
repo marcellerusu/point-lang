@@ -1,6 +1,6 @@
-// use crate::interpreter::interpret;
+use crate::interpreter::interpret;
 
-// pub mod interpreter;
+pub mod interpreter;
 pub mod lexer;
 pub mod parser;
 
@@ -23,5 +23,5 @@ fn main() {
 
     println!("AST! {:?}", ast);
 
-    // println!("{:?}", interpret(ast));
+    println!("{:?}", interpret(ast));
 }

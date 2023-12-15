@@ -1,6 +1,6 @@
 # Pnt Lang
 
-A perverse misunderstanding of object oriented programming
+Message-oriented programming
 
 # A Real Working Example
 

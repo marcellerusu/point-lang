@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::parser::Node;
 
@@ -93,19 +93,31 @@ fn match_vec(method_args: &Vec<Object>, args: &Vec<Object>) -> bool {
     method_args.len() == args.len() && method_args.iter().zip(args).all(|(a, b)| match_obj(a, b))
 }
 
-fn method_call(lhs: &Node, args: &Vec<Node>) -> Object {
+fn method_call(lhs: &Object, args: &Vec<Object>) -> Object {
     let keyword_class = keyword_class();
 
     match (lhs, args) {
-        (Node::Keyword(keyword), args) => {
-            let arg_objects: Vec<Object> = args.iter().map(|node| to_object(node)).collect();
+        (Object::Keyword(keyword), args) => {
             let (_, native_fn) = keyword_class
                 .methods
                 .iter()
-                .find(|(args, _)| match_vec(args, &arg_objects))
+                .find(|(args, _)| match_vec(args, args))
                 .unwrap();
 
             run_native_fn(Object::Keyword(keyword.to_string()), native_fn)
+        }
+        (Object::Instance(_class, properties), args) => {
+            let keys: HashSet<&String> = properties.iter().map(|(name, _)| name).collect();
+            match args.as_slice() {
+                [Object::Keyword(name)] if keys.get(name).is_some() => properties
+                    .iter()
+                    .find(|(name_, _)| name == name_)
+                    .map(|(_, obj)| obj)
+                    .unwrap()
+                    .to_owned(),
+
+                _ => todo!("wtf"),
+            }
         }
         _ => panic!("unknown method"),
     }
@@ -117,7 +129,14 @@ fn eval_node(
     class_env: &mut HashMap<String, Class>,
 ) -> Object {
     match node {
-        Node::MethodCall(lhs, args) => method_call(lhs.as_ref(), args),
+        Node::MethodCall(lhs, args) => {
+            let arg_objects: Vec<Object> = args
+                .iter()
+                .map(|item| eval_node(item, env, class_env))
+                .collect();
+
+            method_call(&eval_node(lhs.as_ref(), env, class_env), &arg_objects)
+        }
         Node::Keyword(name) => Object::Keyword(name.to_owned()),
         Node::Class(name, methods) => {
             assert!(methods.is_empty());
@@ -147,9 +166,9 @@ pub fn interpret(ast: Vec<Node>) -> Object {
     let mut class_env = HashMap::from([("Keyword".to_owned(), keyword_class())]);
     let mut env: HashMap<String, Object> = HashMap::new();
     let mut result: Object = Object::Nil;
-    println!("{:?}", ast);
 
     ast.iter()
         .for_each(|node| result = eval_node(node, &mut env, &mut class_env));
+
     result
 }

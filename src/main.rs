@@ -9,7 +9,7 @@ fn main() {
         "
     class Point.
 
-    Point{x: 1, y: 1}.
+    Point{x: 1, y: 2} :y.
     ",
     );
 
@@ -21,7 +21,7 @@ fn main() {
     }
     .parse();
 
-    println!("AST! {:?}", ast);
+    // println!("AST! {:?}", ast);
 
     println!("{:?}", interpret(ast));
 }

@@ -1,6 +1,7 @@
 #[derive(std::fmt::Debug, PartialEq, Clone)]
 pub enum Token {
     Dot,
+    Semicolon,
     Keyword(String),
     Class,
     Id(String),
@@ -15,6 +16,12 @@ impl Token {
     pub fn as_dot(&self) -> Option<()> {
         match self {
             Token::Dot => Some(()),
+            _ => None,
+        }
+    }
+    pub fn as_semicolon(&self) -> Option<()> {
+        match self {
+            Token::Semicolon => Some(()),
             _ => None,
         }
     }
@@ -99,6 +106,9 @@ pub fn tokenize(program_string: String) -> Vec<Token> {
         } else if program_string.get(idx..(idx + 1)) == Some(".") {
             idx += 1;
             tokens.push(Token::Dot);
+        } else if program_string.get(idx..(idx + 1)) == Some(";") {
+            idx += 1;
+            tokens.push(Token::Semicolon);
         } else if program_string.get(idx..(idx + 1)) == Some("{") {
             idx += 1;
             tokens.push(Token::OpenBrace);

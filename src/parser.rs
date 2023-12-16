@@ -39,7 +39,7 @@ impl Parser {
             self.idx += 1;
             v
         } else {
-            println!("{:?} {:?}", get, self.tokens.get(self.idx..));
+            println!("{:?}", self.tokens.get(self.idx..).unwrap());
             panic!("invalid")
         }
     }
@@ -52,7 +52,7 @@ impl Parser {
             expr
         } else {
             let mut args: Vec<Node> = vec![];
-            while self.scan(|t| t.as_dot()) {
+            while !self.scan(|t| t.as_dot()) {
                 args.push(self.parse_single_expr());
             }
             self.consume(|t| t.as_dot());

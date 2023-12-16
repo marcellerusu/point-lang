@@ -24,52 +24,7 @@ pub enum Object {
 #[derive(Debug, Clone)]
 pub struct Class {
     name: String,
-    uuid: Uuid,
     methods: Vec<(Vec<Object>, Function)>,
-}
-
-fn keyword_class() -> Class {
-    Class {
-        name: String::from("Keyword"),
-        uuid: Uuid::new_v4(),
-        methods: vec![
-            (
-                vec![Object::Keyword(String::from("len"))],
-                Function::Native(String::from("Keyword#len")),
-            ),
-            (
-                vec![Object::Keyword(String::from("log"))],
-                Function::Native(String::from("Keyword#log")),
-            ),
-        ],
-    }
-}
-
-fn run_keyword_method(object: Object, method_name: &str) -> Object {
-    if let Object::Keyword(name) = object {
-        match method_name {
-            "log" => {
-                println!(":{}", name);
-                Object::Nil
-            }
-            "len" => Object::Int(name.len()),
-            _ => panic!("No method found!"),
-        }
-    } else {
-        panic!("expected keyword");
-    }
-}
-
-fn run_native_fn(object: Object, f: &Function) -> Object {
-    if let Function::Native(code) = f {
-        match code.as_str() {
-            "Keyword#log" => run_keyword_method(object, "log"),
-            "Keyword#len" => run_keyword_method(object, "len"),
-            _ => panic!("Unknown native function {:?}", code),
-        }
-    } else {
-        panic!("not a native function")
-    }
 }
 
 fn match_obj(a: &Object, b: &Object) -> bool {
@@ -99,19 +54,15 @@ fn method_call(
     env: &HashMap<String, Object>,
     class_env: &HashMap<Uuid, Class>,
 ) -> Object {
-    let keyword_class = keyword_class();
-
-    match (lhs, args) {
-        (Object::Keyword(keyword), _args) => {
-            let (_, native_fn) = keyword_class
-                .methods
-                .iter()
-                .find(|(args, _)| match_vec(args, args))
-                .unwrap();
-
-            run_native_fn(Object::Keyword(keyword.to_string()), native_fn)
-        }
-        (Object::Instance(class_id, properties), args) => {
+    match lhs {
+        Object::Int(val) => match args.as_slice() {
+            [Object::Keyword(name)] if name == "log" => {
+                println!("{}", val);
+                Object::Nil
+            }
+            _ => todo!("unknown int method"),
+        },
+        Object::Instance(class_id, properties) => {
             let keys: HashSet<&String> = properties.iter().map(|(name, _)| name).collect();
             match args.as_slice() {
                 [Object::Keyword(name)] if keys.get(name).is_some() => properties
@@ -134,6 +85,7 @@ fn method_call(
                 _ => todo!("Unknown"),
             }
         }
+
         _ => panic!("unknown method"),
     }
 }
@@ -167,7 +119,6 @@ fn eval_node(
                 uuid,
                 Class {
                     name: name.to_owned(),
-                    uuid,
                     methods: vec![],
                 },
             );

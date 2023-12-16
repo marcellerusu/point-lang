@@ -27,7 +27,7 @@ impl Parser {
     }
 
     fn scan<T>(&mut self, get: fn(&Token) -> Option<T>) -> bool {
-        if let Some(_) = get(self.tokens.get(self.idx).unwrap()) {
+        if let Some(_) = self.tokens.get(self.idx).and_then(get) {
             true
         } else {
             false
@@ -35,30 +35,41 @@ impl Parser {
     }
 
     fn consume<T>(&mut self, get: fn(&Token) -> Option<T>) -> T {
-        if let Some(v) = get(self.tokens.get(self.idx).unwrap()) {
+        if let Some(v) = self.tokens.get(self.idx).and_then(get) {
             self.idx += 1;
             v
         } else {
-            println!("{:?}", self.tokens.get(self.idx..).unwrap());
+            println!("{:?}", self.tokens.get(self.idx..));
             panic!("invalid")
         }
     }
 
     fn parse_expr(&mut self) -> Node {
-        let expr = self.parse_single_expr();
+        let mut expr = self.parse_single_expr();
+        println!("{:?}", expr);
 
-        if self.scan(|t| t.as_dot()) {
-            self.consume(|t| t.as_dot());
-            expr
-        } else {
+        while !self.scan(|t| t.as_semicolon()) && self.idx < self.tokens.len() {
             let mut args: Vec<Node> = vec![];
-            while !self.scan(|t| t.as_dot()) {
+            while !(self.scan(|t| t.as_dot()) || self.scan(|t| t.as_semicolon()))
+                && self.idx < self.tokens.len()
+            {
                 args.push(self.parse_single_expr());
             }
-            self.consume(|t| t.as_dot());
+            if self.idx >= self.tokens.len() {
+                return expr;
+            } else if self.scan(|t| t.as_dot()) {
+                self.consume(|t| t.as_dot());
+            } else {
+                self.consume(|t| t.as_semicolon());
+            }
 
-            Node::MethodCall(Box::new(expr), args)
+            expr = Node::MethodCall(Box::new(expr), args)
         }
+        if self.idx < self.tokens.len() {
+            self.consume(|t| t.as_semicolon());
+        }
+
+        expr
     }
 
     fn parse_single_expr(&mut self) -> Node {

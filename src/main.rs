@@ -1,17 +1,12 @@
 use crate::interpreter::interpret;
+use std::fs;
 
 pub mod interpreter;
 pub mod lexer;
 pub mod parser;
 
 fn main() {
-    let test_program = String::from(
-        "
-    class Point.
-
-    Point{x: 1, y: 2} :log.
-    ",
-    );
+    let test_program = fs::read_to_string("./test.pnt").unwrap();
 
     let tokens = lexer::tokenize(test_program);
     // println!("Tokens! {:?}", tokens);

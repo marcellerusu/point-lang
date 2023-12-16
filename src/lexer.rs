@@ -80,7 +80,7 @@ pub fn tokenize(program_string: String) -> Vec<Token> {
 
     let mut tokens: Vec<Token> = vec![];
 
-    let end_chars = vec![".", " ", "}", ")"];
+    let end_chars = vec![".", ";", " ", "}", ")"];
 
     while idx < program_string.len() {
         if program_string.get(idx..(idx + 1)) == Some("\n") {
@@ -108,6 +108,7 @@ pub fn tokenize(program_string: String) -> Vec<Token> {
             tokens.push(Token::Dot);
         } else if program_string.get(idx..(idx + 1)) == Some(";") {
             idx += 1;
+
             tokens.push(Token::Semicolon);
         } else if program_string.get(idx..(idx + 1)) == Some("{") {
             idx += 1;

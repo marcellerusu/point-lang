@@ -9,7 +9,7 @@ fn main() {
         "
     class Point.
 
-    Point{x: 1, y: 2} :y.
+    Point{x: 1, y: 2} :log.
     ",
     );
 

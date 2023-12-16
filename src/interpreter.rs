@@ -93,7 +93,12 @@ fn match_vec(method_args: &Vec<Object>, args: &Vec<Object>) -> bool {
     method_args.len() == args.len() && method_args.iter().zip(args).all(|(a, b)| match_obj(a, b))
 }
 
-fn method_call(lhs: &Object, args: &Vec<Object>) -> Object {
+fn method_call(
+    lhs: &Object,
+    args: &Vec<Object>,
+    env: &HashMap<String, Object>,
+    class_env: &HashMap<Uuid, Class>,
+) -> Object {
     let keyword_class = keyword_class();
 
     match (lhs, args) {
@@ -106,7 +111,7 @@ fn method_call(lhs: &Object, args: &Vec<Object>) -> Object {
 
             run_native_fn(Object::Keyword(keyword.to_string()), native_fn)
         }
-        (Object::Instance(_class, properties), args) => {
+        (Object::Instance(class_id, properties), args) => {
             let keys: HashSet<&String> = properties.iter().map(|(name, _)| name).collect();
             match args.as_slice() {
                 [Object::Keyword(name)] if keys.get(name).is_some() => properties
@@ -116,7 +121,17 @@ fn method_call(lhs: &Object, args: &Vec<Object>) -> Object {
                     .unwrap()
                     .to_owned(),
 
-                _ => todo!("wtf"),
+                [Object::Keyword(name)] if name == "log" => {
+                    let class = class_env.get(class_id).unwrap();
+                    let props = properties
+                        .iter()
+                        .map(|(name, val)| format!("{}: {:?}", name, val))
+                        .reduce(|str, cur| str + ", " + &cur)
+                        .unwrap();
+                    println!("{} {{ {} }}", class.name, props);
+                    Object::Nil
+                }
+                _ => todo!("Unknown"),
             }
         }
         _ => panic!("unknown method"),
@@ -126,7 +141,7 @@ fn method_call(lhs: &Object, args: &Vec<Object>) -> Object {
 fn eval_node(
     node: &Node,
     env: &mut HashMap<String, Object>,
-    class_env: &mut HashMap<String, Class>,
+    class_env: &mut HashMap<Uuid, Class>,
 ) -> Object {
     match node {
         Node::MethodCall(lhs, args) => {
@@ -135,15 +150,21 @@ fn eval_node(
                 .map(|item| eval_node(item, env, class_env))
                 .collect();
 
-            method_call(&eval_node(lhs.as_ref(), env, class_env), &arg_objects)
+            method_call(
+                &eval_node(lhs.as_ref(), env, class_env),
+                &arg_objects,
+                env,
+                class_env,
+            )
         }
         Node::Keyword(name) => Object::Keyword(name.to_owned()),
         Node::Class(name, methods) => {
             assert!(methods.is_empty());
             let uuid = Uuid::new_v4();
+            env.insert(name.to_owned(), Object::Class(uuid));
 
             class_env.insert(
-                name.to_owned(),
+                uuid,
                 Class {
                     name: name.to_owned(),
                     uuid,
@@ -153,19 +174,25 @@ fn eval_node(
 
             Object::Class(uuid)
         }
-        Node::RecordConstructor(name, properties) => Object::Instance(
-            class_env.get(name).unwrap().uuid,
-            properties
-                .iter()
-                .map(|(name, node)| (name.to_owned(), eval_node(node, env, class_env)))
-                .collect(),
-        ),
+        Node::RecordConstructor(name, properties) => {
+            if let Some(Object::Class(uuid)) = env.get(name) {
+                Object::Instance(
+                    *uuid,
+                    properties
+                        .iter()
+                        .map(|(name, node)| (name.to_owned(), eval_node(node, env, class_env)))
+                        .collect(),
+                )
+            } else {
+                todo!("Class unknown")
+            }
+        }
         Node::Int(val) => Object::Int(*val),
     }
 }
 
 pub fn interpret(ast: Vec<Node>) -> Object {
-    let mut class_env = HashMap::from([("Keyword".to_owned(), keyword_class())]);
+    let mut class_env: HashMap<Uuid, Class> = HashMap::new();
     let mut env: HashMap<String, Object> = HashMap::new();
     let mut result: Object = Object::Nil;
 

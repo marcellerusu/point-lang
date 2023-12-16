@@ -88,7 +88,7 @@ fn method_call(
                         );
                         eval_node(method, env, &mut class_env.clone())
                     } else {
-                        panic!("wtf")
+                        panic!("no method found :(")
                     }
                 }
             }

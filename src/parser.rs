@@ -7,6 +7,7 @@ pub enum Node {
     MethodCall(Box<Node>, Vec<Node>),
     RecordConstructor(String, Vec<(String, Node)>),
     Int(usize),
+    SelfN,
 }
 
 #[derive(Clone)]
@@ -27,11 +28,7 @@ impl Parser {
     }
 
     fn scan<T>(&mut self, get: fn(&Token) -> Option<T>) -> bool {
-        if let Some(_) = self.tokens.get(self.idx).and_then(get) {
-            true
-        } else {
-            false
-        }
+        self.tokens.get(self.idx).and_then(get).is_some()
     }
 
     fn consume<T>(&mut self, get: fn(&Token) -> Option<T>) -> T {
@@ -46,28 +43,18 @@ impl Parser {
 
     fn parse_expr(&mut self) -> Node {
         let mut expr = self.parse_single_expr();
-        println!("{:?}", expr);
 
-        while !self.scan(|t| t.as_semicolon()) && self.idx < self.tokens.len() {
+        while !self.scan(|t| t.as_semicolon()) {
             let mut args: Vec<Node> = vec![];
-            while !(self.scan(|t| t.as_dot()) || self.scan(|t| t.as_semicolon()))
-                && self.idx < self.tokens.len()
-            {
+            while !self.scan(|t| t.as_dot()) && !self.scan(|t| t.as_semicolon()) {
                 args.push(self.parse_single_expr());
             }
-            if self.idx >= self.tokens.len() {
-                return expr;
-            } else if self.scan(|t| t.as_dot()) {
+            expr = Node::MethodCall(Box::new(expr), args);
+            if self.scan(|t| t.as_dot()) {
                 self.consume(|t| t.as_dot());
-            } else {
-                self.consume(|t| t.as_semicolon());
             }
-
-            expr = Node::MethodCall(Box::new(expr), args)
         }
-        if self.idx < self.tokens.len() {
-            self.consume(|t| t.as_semicolon());
-        }
+        self.consume(|t| t.as_semicolon());
 
         expr
     }
@@ -75,6 +62,8 @@ impl Parser {
     fn parse_single_expr(&mut self) -> Node {
         if self.scan(|t| t.as_keyword()) {
             self.parse_keyword()
+        } else if self.scan(|t| t.as_self()) {
+            self.parse_self()
         } else if self.scan(|t| t.as_class()) {
             self.parse_class()
         } else if self.scan(|t| t.as_int()) {
@@ -84,9 +73,14 @@ impl Parser {
         {
             self.parse_record_constructor()
         } else {
-            println!("{:?}", self.tokens.get(self.idx..));
+            println!("hm {:?}", self.tokens.get(self.idx..));
             panic!("no expr found")
         }
+    }
+
+    fn parse_self(&mut self) -> Node {
+        self.consume(|t| t.as_self());
+        Node::SelfN
     }
 
     fn parse_int(&mut self) -> Node {
@@ -113,10 +107,29 @@ impl Parser {
         Node::RecordConstructor(name.clone(), properties)
     }
 
+    fn parse_pattern(&mut self) -> Node {
+        self.parse_single_expr()
+    }
+
+    fn parse_method(&mut self) -> (Vec<Node>, Node) {
+        self.consume(|t| t.as_def());
+        let mut args: Vec<Node> = vec![];
+        while !self.scan(|t| t.as_arrow()) {
+            args.push(self.parse_pattern());
+        }
+        self.consume(|t| t.as_arrow());
+        let body = self.parse_expr();
+        (args, body)
+    }
+
     fn parse_class(&mut self) -> Node {
         self.consume(|t| t.as_class());
         let name = self.consume(|t| t.as_id());
-        Node::Class(name.clone(), vec![])
+        let mut methods: Vec<(Vec<Node>, Node)> = vec![];
+        while self.scan(|t| t.as_def()) {
+            methods.push(self.parse_method());
+        }
+        Node::Class(name.clone(), methods)
     }
 
     fn parse_keyword(&mut self) -> Node {

@@ -7,8 +7,12 @@ pub enum Token {
     Id(String),
     OpenBrace,
     CloseBrace,
+    ColonEq,
+    SelfT,
+    Def,
     Colon,
     Comma,
+    Arrow,
     Int(usize),
 }
 
@@ -16,6 +20,18 @@ impl Token {
     pub fn as_dot(&self) -> Option<()> {
         match self {
             Token::Dot => Some(()),
+            _ => None,
+        }
+    }
+    pub fn as_self(&self) -> Option<()> {
+        match self {
+            Token::SelfT => Some(()),
+            _ => None,
+        }
+    }
+    pub fn as_arrow(&self) -> Option<()> {
+        match self {
+            Token::Arrow => Some(()),
             _ => None,
         }
     }
@@ -37,6 +53,12 @@ impl Token {
             _ => None,
         }
     }
+    pub fn as_def(&self) -> Option<()> {
+        match self {
+            Token::Def => Some(()),
+            _ => None,
+        }
+    }
     pub fn as_id(&self) -> Option<String> {
         match self {
             Token::Id(name) => Some(name.to_owned()),
@@ -52,6 +74,12 @@ impl Token {
     pub fn as_close_brace(&self) -> Option<()> {
         match self {
             Token::CloseBrace => Some(()),
+            _ => None,
+        }
+    }
+    pub fn as_colon_eq(&self) -> Option<()> {
+        match self {
+            Token::ColonEq => Some(()),
             _ => None,
         }
     }
@@ -90,6 +118,12 @@ pub fn tokenize(program_string: String) -> Vec<Token> {
         } else if program_string.get(idx..(idx + 2)) == Some(": ") {
             idx += 2;
             tokens.push(Token::Colon)
+        } else if program_string.get(idx..(idx + 2)) == Some(":=") {
+            idx += 2;
+            tokens.push(Token::ColonEq)
+        } else if program_string.get(idx..(idx + 2)) == Some("->") {
+            idx += 2;
+            tokens.push(Token::Arrow)
         } else if program_string.get(idx..(idx + 1)) == Some(":") {
             idx += 1;
             let mut name = String::from("");
@@ -122,6 +156,12 @@ pub fn tokenize(program_string: String) -> Vec<Token> {
         } else if program_string.get(idx..(idx + 5)) == Some("class") {
             idx += 5;
             tokens.push(Token::Class);
+        } else if program_string.get(idx..(idx + 4)) == Some("self") {
+            idx += 4;
+            tokens.push(Token::SelfT);
+        } else if program_string.get(idx..(idx + 3)) == Some("def") {
+            idx += 3;
+            tokens.push(Token::Def);
         } else if program_string
             .chars()
             .skip(idx)

@@ -4,13 +4,6 @@ use uuid::Uuid;
 
 use crate::parser::Node;
 
-#[derive(PartialEq, Debug, Clone)]
-enum Function {
-    // Native("Keyword#log")
-    Native(String),
-    _Code(Vec<Node>),
-}
-
 #[derive(Debug, Clone)]
 pub enum Object {
     Nil,
@@ -24,35 +17,35 @@ pub enum Object {
 #[derive(Debug, Clone)]
 pub struct Class {
     name: String,
-    methods: Vec<(Vec<Object>, Function)>,
+    methods: Vec<(Vec<Node>, Node)>,
 }
 
-fn match_obj(a: &Object, b: &Object) -> bool {
+fn match_pattern(a: &Node, b: &Object) -> bool {
     match (a, b) {
-        (Object::Nil, Object::Nil) => true,
-        (Object::Nil, _) => false,
-        (Object::Keyword(a), Object::Keyword(b)) => a == b,
-        (Object::Keyword(_), _) => false,
-        (Object::Str(a), Object::Str(b)) => a == b,
-        (Object::Str(_), _) => false,
-        (Object::Int(a), Object::Int(b)) => a == b,
-        (Object::Int(_), _) => false,
-        (Object::Instance(_, _), Object::Instance(_, _)) => todo!(),
-        (Object::Instance(_, _), _) => false,
-        (Object::Class(a), Object::Class(b)) => a == b,
-        (Object::Class(_), _) => false,
+        (Node::Keyword(a), Object::Keyword(b)) => a == b,
+        (Node::Keyword(_), _) => false,
+        (Node::Class(_, _), _) => todo!("class eq"),
+        (Node::MethodCall(_, _), _) => todo!("not sure"),
+        (Node::RecordConstructor(_, _), _) => todo!("ehh"),
+        (Node::Int(a), Object::Int(b)) => a == b,
+        (Node::Int(_), _) => false,
+        (Node::SelfN, _) => todo!("invalid pattern"),
     }
 }
 
-fn match_vec(method_args: &Vec<Object>, args: &Vec<Object>) -> bool {
-    method_args.len() == args.len() && method_args.iter().zip(args).all(|(a, b)| match_obj(a, b))
+fn match_vec(method_args: &Vec<Node>, args: &Vec<Object>) -> bool {
+    method_args.len() == args.len()
+        && method_args
+            .iter()
+            .zip(args)
+            .all(|(a, b)| match_pattern(a, b))
 }
 
 fn method_call(
     lhs: &Object,
     args: &Vec<Object>,
-    env: &HashMap<String, Object>,
-    class_env: &HashMap<Uuid, Class>,
+    env: &mut HashMap<String, Object>,
+    class_env: &mut HashMap<Uuid, Class>,
 ) -> Object {
     match lhs {
         Object::Int(val) => match args.as_slice() {
@@ -82,7 +75,22 @@ fn method_call(
                     println!("{} {{ {} }}", class.name, props);
                     Object::Nil
                 }
-                _ => todo!("Unknown"),
+                _ => {
+                    let class = class_env.get(class_id).unwrap();
+                    if let Some((_, method)) = class
+                        .methods
+                        .iter()
+                        .find(|(patterns, _)| match_vec(patterns, args))
+                    {
+                        env.insert(
+                            "self".to_string(),
+                            Object::Instance(*class_id, properties.to_owned()),
+                        );
+                        eval_node(method, env, &mut class_env.clone())
+                    } else {
+                        panic!("wtf")
+                    }
+                }
             }
         }
 
@@ -111,7 +119,6 @@ fn eval_node(
         }
         Node::Keyword(name) => Object::Keyword(name.to_owned()),
         Node::Class(name, methods) => {
-            assert!(methods.is_empty());
             let uuid = Uuid::new_v4();
             env.insert(name.to_owned(), Object::Class(uuid));
 
@@ -119,7 +126,7 @@ fn eval_node(
                 uuid,
                 Class {
                     name: name.to_owned(),
-                    methods: vec![],
+                    methods: methods.to_vec(),
                 },
             );
 
@@ -139,6 +146,7 @@ fn eval_node(
             }
         }
         Node::Int(val) => Object::Int(*val),
+        Node::SelfN => env.get("self").unwrap().to_owned(),
     }
 }
 

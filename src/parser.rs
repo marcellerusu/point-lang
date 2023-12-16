@@ -44,9 +44,9 @@ impl Parser {
     fn parse_expr(&mut self) -> Node {
         let mut expr = self.parse_single_expr();
 
-        while !self.scan(|t| t.as_semicolon()) {
+        while !self.scan(|t| t.as_end_token()) {
             let mut args: Vec<Node> = vec![];
-            while !self.scan(|t| t.as_dot()) && !self.scan(|t| t.as_semicolon()) {
+            while !self.scan(|t| t.as_dot()) && !self.scan(|t| t.as_end_token()) {
                 args.push(self.parse_single_expr());
             }
             expr = Node::MethodCall(Box::new(expr), args);
@@ -54,7 +54,7 @@ impl Parser {
                 self.consume(|t| t.as_dot());
             }
         }
-        self.consume(|t| t.as_semicolon());
+        self.consume(|t| t.as_end_token());
 
         expr
     }

@@ -1,5 +1,5 @@
 class Point
   def :yes -> self :x;
-;
+end
 
 Point{x: 10} :yes;

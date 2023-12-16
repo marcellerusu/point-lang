@@ -1,5 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
+use uuid::Uuid;
+
 use crate::parser::Node;
 
 #[derive(PartialEq, Debug, Clone)]
@@ -15,18 +17,21 @@ pub enum Object {
     Keyword(String),
     Str(String),
     Int(usize),
-    Instance(Class, Vec<(String, Object)>),
+    Instance(Uuid, Vec<(String, Object)>),
+    Class(Uuid),
 }
 
 #[derive(Debug, Clone)]
 pub struct Class {
     name: String,
+    uuid: Uuid,
     methods: Vec<(Vec<Object>, Function)>,
 }
 
 fn keyword_class() -> Class {
     Class {
         name: String::from("Keyword"),
+        uuid: Uuid::new_v4(),
         methods: vec![
             (
                 vec![Object::Keyword(String::from("len"))],
@@ -67,13 +72,6 @@ fn run_native_fn(object: Object, f: &Function) -> Object {
     }
 }
 
-fn to_object(node: &Node) -> Object {
-    match node {
-        Node::Keyword(name) => Object::Keyword(name.clone()),
-        _ => panic!("Not an object {:?}", node),
-    }
-}
-
 fn match_obj(a: &Object, b: &Object) -> bool {
     match (a, b) {
         (Object::Nil, Object::Nil) => true,
@@ -86,6 +84,8 @@ fn match_obj(a: &Object, b: &Object) -> bool {
         (Object::Int(_), _) => false,
         (Object::Instance(_, _), Object::Instance(_, _)) => todo!(),
         (Object::Instance(_, _), _) => false,
+        (Object::Class(a), Object::Class(b)) => a == b,
+        (Object::Class(_), _) => false,
     }
 }
 
@@ -97,7 +97,7 @@ fn method_call(lhs: &Object, args: &Vec<Object>) -> Object {
     let keyword_class = keyword_class();
 
     match (lhs, args) {
-        (Object::Keyword(keyword), args) => {
+        (Object::Keyword(keyword), _args) => {
             let (_, native_fn) = keyword_class
                 .methods
                 .iter()
@@ -140,24 +140,26 @@ fn eval_node(
         Node::Keyword(name) => Object::Keyword(name.to_owned()),
         Node::Class(name, methods) => {
             assert!(methods.is_empty());
+            let uuid = Uuid::new_v4();
+
             class_env.insert(
                 name.to_owned(),
                 Class {
                     name: name.to_owned(),
+                    uuid,
                     methods: vec![],
                 },
             );
-            // TODO: return a class
-            Object::Nil
+
+            Object::Class(uuid)
         }
         Node::RecordConstructor(name, properties) => Object::Instance(
-            class_env.get(name).unwrap().clone(),
+            class_env.get(name).unwrap().uuid,
             properties
                 .iter()
                 .map(|(name, node)| (name.to_owned(), eval_node(node, env, class_env)))
                 .collect(),
         ),
-        // Object::Instance(, ()),,
         Node::Int(val) => Object::Int(*val),
     }
 }

@@ -29,7 +29,8 @@ fn match_pattern(a: &Node, b: &Object) -> bool {
         (Node::RecordConstructor(_, _), _) => todo!("ehh"),
         (Node::Int(a), Object::Int(b)) => a == b,
         (Node::Int(_), _) => false,
-        (Node::SelfN, _) => todo!("invalid pattern"),
+        (Node::IdLookup(name), _) if name == "self" => panic!("self is not a valid pattern"),
+        (Node::IdLookup(_), _) => true,
     }
 }
 
@@ -82,11 +83,23 @@ fn method_call(
                         .iter()
                         .find(|(patterns, _)| match_vec(patterns, args))
                     {
+                        // let old_self = env.get("self");
+                        // env.insert(
+                        //     "self".to_string(),
+                        //     Object::Instance(*class_id, properties.to_owned()),
+                        // );
+                        let mut env = env.clone();
                         env.insert(
                             "self".to_string(),
                             Object::Instance(*class_id, properties.to_owned()),
                         );
-                        eval_node(method, env, &mut class_env.clone())
+                        // TODO: &mut class_env.clone() <- this sucks
+                        let result = eval_node(method, &mut env, &mut class_env.clone());
+                        // env.insert(
+                        //     "self".to_string(),
+                        //     old_self.unwrap_or(&Object::Nil).to_owned(),
+                        // );
+                        result
                     } else {
                         panic!("no method found :(")
                     }
@@ -146,7 +159,7 @@ fn eval_node(
             }
         }
         Node::Int(val) => Object::Int(*val),
-        Node::SelfN => env.get("self").unwrap().to_owned(),
+        Node::IdLookup(name) => env.get(name).unwrap().to_owned(),
     }
 }
 

@@ -7,7 +7,7 @@ pub enum Node {
     MethodCall(Box<Node>, Vec<Node>),
     RecordConstructor(String, Vec<(String, Node)>),
     Int(usize),
-    SelfN,
+    IdLookup(String),
 }
 
 #[derive(Clone)]
@@ -62,8 +62,6 @@ impl Parser {
     fn parse_single_expr(&mut self) -> Node {
         if self.scan(|t| t.as_keyword()) {
             self.parse_keyword()
-        } else if self.scan(|t| t.as_self()) {
-            self.parse_self()
         } else if self.scan(|t| t.as_class()) {
             self.parse_class()
         } else if self.scan(|t| t.as_int()) {
@@ -72,15 +70,17 @@ impl Parser {
             self.tokens.get(self.idx..(self.idx + 2))
         {
             self.parse_record_constructor()
+        } else if self.scan(|t| t.as_id()) {
+            self.parse_id()
         } else {
             println!("hm {:?}", self.tokens.get(self.idx..));
             panic!("no expr found")
         }
     }
 
-    fn parse_self(&mut self) -> Node {
-        self.consume(|t| t.as_self());
-        Node::SelfN
+    fn parse_id(&mut self) -> Node {
+        let name = self.consume(|t| t.as_id());
+        Node::IdLookup(name)
     }
 
     fn parse_int(&mut self) -> Node {

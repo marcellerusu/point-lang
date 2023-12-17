@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 #[derive(std::fmt::Debug, PartialEq, Clone)]
 pub enum Token {
     Dot,
@@ -8,7 +10,6 @@ pub enum Token {
     OpenBrace,
     CloseBrace,
     ColonEq,
-    SelfT,
     Def,
     Colon,
     Comma,
@@ -20,12 +21,6 @@ impl Token {
     pub fn as_dot(&self) -> Option<()> {
         match self {
             Token::Dot => Some(()),
-            _ => None,
-        }
-    }
-    pub fn as_self(&self) -> Option<()> {
-        match self {
-            Token::SelfT => Some(()),
             _ => None,
         }
     }
@@ -108,7 +103,7 @@ pub fn tokenize(program_string: String) -> Vec<Token> {
 
     let mut tokens: Vec<Token> = vec![];
 
-    let end_chars = vec![".", ";", " ", "}", ")"];
+    let end_chars = HashSet::from([".", ";", " ", "}", ")"]);
 
     while idx < program_string.len() {
         if program_string.get(idx..(idx + 1)) == Some("\n") {
@@ -130,9 +125,10 @@ pub fn tokenize(program_string: String) -> Vec<Token> {
         } else if program_string.get(idx..(idx + 1)) == Some(":") {
             idx += 1;
             let mut name = String::from("");
-            while end_chars
-                .iter()
-                .all(|char| program_string.get(idx..(idx + 1)) != Some(char))
+            while program_string
+                .get(idx..(idx + 1))
+                .and_then(|char| end_chars.get(char))
+                .is_none()
             {
                 if let Some(s) = program_string.get(idx..(idx + 1)) {
                     name += s;
@@ -159,9 +155,6 @@ pub fn tokenize(program_string: String) -> Vec<Token> {
         } else if program_string.get(idx..(idx + 5)) == Some("class") {
             idx += 5;
             tokens.push(Token::Class);
-        } else if program_string.get(idx..(idx + 4)) == Some("self") {
-            idx += 4;
-            tokens.push(Token::SelfT);
         } else if program_string.get(idx..(idx + 3)) == Some("def") {
             idx += 3;
             tokens.push(Token::Def);

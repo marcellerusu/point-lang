@@ -12,6 +12,7 @@ pub enum Object {
     Int(usize),
     Instance(Uuid, Vec<(String, Object)>),
     Class(Uuid),
+    Operator(String),
 }
 
 #[derive(Debug, Clone)]
@@ -20,7 +21,7 @@ pub struct Class {
     methods: Vec<(Vec<Node>, Node)>,
 }
 
-fn match_pattern(a: &Node, b: &Object) -> bool {
+fn match_pattern(a: &Node, b: &Object, class_env: &mut HashMap<Uuid, Class>) -> bool {
     match (a, b) {
         (Node::Keyword(a), Object::Keyword(b)) => a == b,
         (Node::Keyword(_), _) => false,
@@ -31,15 +32,32 @@ fn match_pattern(a: &Node, b: &Object) -> bool {
         (Node::Int(_), _) => false,
         (Node::IdLookup(name), _) if name == "self" => panic!("self is not a valid pattern"),
         (Node::IdLookup(_), _) => true,
+        (Node::Assign(_, _), _) => panic!("NOT SURE ABOUT THIS"),
+        (Node::Operator(a), Object::Operator(b)) => a == b,
+        (Node::Operator(_), _) => false,
+        (Node::RecordPattern(_, _), Object::Nil) => false,
+        (Node::RecordPattern(_, _), Object::Keyword(_)) => false,
+        (Node::RecordPattern(_, _), Object::Str(_)) => false,
+        (Node::RecordPattern(_, _), Object::Int(_)) => false,
+        (Node::RecordPattern(a, keys), Object::Instance(id, props)) => {
+            class_env.get(id).map(|c| &c.name == a).unwrap_or(false)
+                && props.iter().all(|(k, _)| keys.contains(k))
+        }
+        (Node::RecordPattern(_, _), Object::Class(_)) => todo!(),
+        (Node::RecordPattern(_, _), Object::Operator(_)) => todo!(),
     }
 }
 
-fn match_vec(method_args: &Vec<Node>, args: &Vec<Object>) -> bool {
+fn match_vec(
+    method_args: &Vec<Node>,
+    args: &Vec<Object>,
+    class_env: &mut HashMap<Uuid, Class>,
+) -> bool {
     method_args.len() == args.len()
         && method_args
             .iter()
             .zip(args)
-            .all(|(a, b)| match_pattern(a, b))
+            .all(|(a, b)| match_pattern(a, b, class_env))
 }
 
 fn method_call(
@@ -81,7 +99,7 @@ fn method_call(
                     if let Some((_, method)) = class
                         .methods
                         .iter()
-                        .find(|(patterns, _)| match_vec(patterns, args))
+                        .find(|(patterns, _)| match_vec(patterns, args, &mut class_env.clone()))
                     {
                         // let old_self = env.get("self");
                         // env.insert(
@@ -159,7 +177,23 @@ fn eval_node(
             }
         }
         Node::Int(val) => Object::Int(*val),
-        Node::IdLookup(name) => env.get(name).unwrap().to_owned(),
+        Node::IdLookup(name) => {
+            if let Some(val) = env.get(name) {
+                val.to_owned()
+            } else {
+                panic!("var `{}` not found!", name)
+            }
+        }
+        Node::Assign(name, expr) => {
+            // EHH another clone
+            env.insert(
+                name.to_owned(),
+                eval_node(expr, &mut env.clone(), class_env),
+            );
+            Object::Nil
+        }
+        Node::Operator(name) => Object::Operator(name.to_owned()),
+        Node::RecordPattern(_, _) => todo!("invalid expr"),
     }
 }
 

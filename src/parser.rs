@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::lexer::Token;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -8,6 +10,9 @@ pub enum Node {
     RecordConstructor(String, Vec<(String, Node)>),
     Int(usize),
     IdLookup(String),
+    Assign(String, Box<Node>),
+    Operator(String),
+    RecordPattern(String, HashSet<String>),
 }
 
 #[derive(Clone)]
@@ -42,21 +47,25 @@ impl Parser {
     }
 
     fn parse_expr(&mut self) -> Node {
-        let mut expr = self.parse_single_expr();
+        if let Some([Token::Id(_), Token::ColonEq]) = self.tokens.get(self.idx..(self.idx + 2)) {
+            self.parse_assign()
+        } else {
+            let mut expr = self.parse_single_expr();
 
-        while !self.scan(|t| t.as_end_token()) {
-            let mut args: Vec<Node> = vec![];
-            while !self.scan(|t| t.as_dot()) && !self.scan(|t| t.as_end_token()) {
-                args.push(self.parse_single_expr());
+            while !self.scan(|t| t.as_end_token()) {
+                let mut args: Vec<Node> = vec![];
+                while !self.scan(|t| t.as_dot()) && !self.scan(|t| t.as_end_token()) {
+                    args.push(self.parse_single_expr());
+                }
+                expr = Node::MethodCall(Box::new(expr), args);
+                if self.scan(|t| t.as_dot()) {
+                    self.consume(|t| t.as_dot());
+                }
             }
-            expr = Node::MethodCall(Box::new(expr), args);
-            if self.scan(|t| t.as_dot()) {
-                self.consume(|t| t.as_dot());
-            }
+            self.consume(|t| t.as_end_token());
+
+            expr
         }
-        self.consume(|t| t.as_end_token());
-
-        expr
     }
 
     fn parse_single_expr(&mut self) -> Node {
@@ -66,6 +75,8 @@ impl Parser {
             self.parse_class()
         } else if self.scan(|t| t.as_int()) {
             self.parse_int()
+        } else if self.scan(|t| t.as_operator()) {
+            self.parse_operator()
         } else if let Some([Token::Id(_), Token::OpenBrace]) =
             self.tokens.get(self.idx..(self.idx + 2))
         {
@@ -76,6 +87,17 @@ impl Parser {
             println!("hm {:?}", self.tokens.get(self.idx..));
             panic!("no expr found")
         }
+    }
+
+    fn parse_operator(&mut self) -> Node {
+        let op = self.consume(|t| t.as_operator());
+        Node::Operator(op)
+    }
+
+    fn parse_assign(&mut self) -> Node {
+        let name = self.consume(|t| t.as_id());
+        self.consume(|t| t.as_colon_eq());
+        Node::Assign(name, Box::new(self.parse_expr()))
     }
 
     fn parse_id(&mut self) -> Node {
@@ -108,7 +130,25 @@ impl Parser {
     }
 
     fn parse_pattern(&mut self) -> Node {
-        self.parse_single_expr()
+        if let Some([Token::Id(_), Token::OpenBrace]) = self.tokens.get(self.idx..(self.idx + 2)) {
+            self.parse_record_pattern()
+        } else {
+            self.parse_single_expr()
+        }
+    }
+
+    fn parse_record_pattern(&mut self) -> Node {
+        let name = self.consume(|t| t.as_id());
+        self.consume(|t| t.as_open_brace());
+        let mut args: HashSet<String> = HashSet::from([]);
+        while !self.scan(|t| t.as_close_brace()) {
+            let name = self.consume(|t| t.as_id());
+
+            if !self.scan(|t| t.as_close_brace()) {
+                self.consume(|t| t.as_comma());
+            }
+        }
+        Node::RecordPattern(name, args)
     }
 
     fn parse_method(&mut self) -> (Vec<Node>, Node) {

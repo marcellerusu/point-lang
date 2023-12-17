@@ -1,5 +1,8 @@
 class Point
-  def :yes -> self :x;
+  def + Point{x, y} -> self;
 end
 
-Point{x: 10} :yes;
+a := Point{x: 10};
+
+a +.
+  :log;

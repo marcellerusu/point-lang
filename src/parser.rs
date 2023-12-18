@@ -110,6 +110,26 @@ impl Parser {
         Node::Int(val)
     }
 
+    fn parse_record_expr(&mut self) -> Node {
+        let mut expr = self.parse_single_expr();
+
+        while !self.scan(|t| t.as_comma()) && !self.scan(|t| t.as_close_brace()) {
+            let mut args: Vec<Node> = vec![];
+            while !self.scan(|t| t.as_dot())
+                && !self.scan(|t| t.as_comma())
+                && !self.scan(|t| t.as_close_brace())
+            {
+                args.push(self.parse_single_expr());
+            }
+            expr = Node::MethodCall(Box::new(expr), args);
+            if self.scan(|t| t.as_dot()) {
+                self.consume(|t| t.as_dot());
+            }
+        }
+
+        expr
+    }
+
     fn parse_record_constructor(&mut self) -> Node {
         let name = self.consume(|t| t.as_id());
         self.consume(|t| t.as_open_brace());
@@ -118,8 +138,7 @@ impl Parser {
         while !self.scan(|t| t.as_close_brace()) {
             let name = self.consume(|t| t.as_id());
             self.consume(|t| t.as_colon());
-            // TODO: should be able to do self.parse_expr() here.
-            properties.push((name.clone(), self.parse_single_expr()));
+            properties.push((name.clone(), self.parse_record_expr()));
             if !self.scan(|t| t.as_close_brace()) {
                 self.consume(|t| t.as_comma());
             }
@@ -147,7 +166,9 @@ impl Parser {
             if !self.scan(|t| t.as_close_brace()) {
                 self.consume(|t| t.as_comma());
             }
+            args.insert(name);
         }
+        self.consume(|t| t.as_close_brace());
         Node::RecordPattern(name, args)
     }
 

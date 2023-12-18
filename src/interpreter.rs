@@ -1,3 +1,4 @@
+use core::panic;
 use std::collections::{HashMap, HashSet};
 
 use uuid::Uuid;
@@ -21,7 +22,7 @@ pub struct Class {
     methods: Vec<(Vec<Node>, Node)>,
 }
 
-fn match_pattern(a: &Node, b: &Object, class_env: &mut HashMap<Uuid, Class>) -> bool {
+fn match_pattern(a: &Node, b: &Object, class_env: &HashMap<Uuid, Class>) -> bool {
     match (a, b) {
         (Node::Keyword(a), Object::Keyword(b)) => a == b,
         (Node::Keyword(_), _) => false,
@@ -51,7 +52,7 @@ fn match_pattern(a: &Node, b: &Object, class_env: &mut HashMap<Uuid, Class>) -> 
 fn match_vec(
     method_args: &Vec<Node>,
     args: &Vec<Object>,
-    class_env: &mut HashMap<Uuid, Class>,
+    class_env: &HashMap<Uuid, Class>,
 ) -> bool {
     method_args.len() == args.len()
         && method_args
@@ -63,8 +64,8 @@ fn match_vec(
 fn method_call(
     lhs: &Object,
     args: &Vec<Object>,
-    env: &mut HashMap<String, Object>,
-    class_env: &mut HashMap<Uuid, Class>,
+    env: &HashMap<String, Object>,
+    class_env: &HashMap<Uuid, Class>,
 ) -> Object {
     match lhs {
         Object::Int(val) => match args.as_slice() {
@@ -72,7 +73,10 @@ fn method_call(
                 println!("{}", val);
                 Object::Nil
             }
-            _ => todo!("unknown int method"),
+            [Object::Operator(op), Object::Int(other_val)] if op == "+" => {
+                Object::Int(val + other_val)
+            }
+            _ => todo!("unknown int method, {:?}", args),
         },
         Object::Instance(class_id, properties) => {
             let keys: HashSet<&String> = properties.iter().map(|(name, _)| name).collect();
@@ -96,10 +100,10 @@ fn method_call(
                 }
                 _ => {
                     let class = class_env.get(class_id).unwrap();
-                    if let Some((_, method)) = class
+                    if let Some((pattern, method)) = class
                         .methods
                         .iter()
-                        .find(|(patterns, _)| match_vec(patterns, args, &mut class_env.clone()))
+                        .find(|(patterns, _)| match_vec(patterns, args, class_env))
                     {
                         // let old_self = env.get("self");
                         // env.insert(
@@ -111,6 +115,31 @@ fn method_call(
                             "self".to_string(),
                             Object::Instance(*class_id, properties.to_owned()),
                         );
+                        for (pat, arg) in pattern.iter().zip(args) {
+                            match pat {
+                                Node::IdLookup(name) => {
+                                    env.insert(name.to_owned(), arg.to_owned());
+                                }
+                                Node::Keyword(_) => (),
+                                Node::Class(_, _) => panic!(),
+                                Node::MethodCall(_, _) => panic!(),
+                                Node::RecordConstructor(_, _) => panic!(),
+                                Node::Int(_) => (),
+                                Node::Assign(_, _) => panic!(),
+                                Node::Operator(_) => (),
+                                Node::RecordPattern(_, properties) => {
+                                    if let Object::Instance(_, props) = arg {
+                                        for (name, val) in props {
+                                            if properties.contains(name) {
+                                                env.insert(name.to_owned(), val.to_owned());
+                                            }
+                                        }
+                                    } else {
+                                        panic!("wtf");
+                                    }
+                                }
+                            }
+                        }
                         // TODO: &mut class_env.clone() <- this sucks
                         let result = eval_node(method, &mut env, &mut class_env.clone());
                         // env.insert(

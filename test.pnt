@@ -1,8 +1,7 @@
 class Point
-  def + Point{x, y} -> self;
+  def + Point{x, y} ->
+    Point{x: self :x. + x., y: self :x. + y.};
 end
 
-a := Point{x: 10};
-
-a +.
+Point{x: 1, y: 2} + Point{x: 2, y: 1}.
   :log;

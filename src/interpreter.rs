@@ -26,7 +26,7 @@ impl Object {
                     .map(|(name, val)| format!("{}: {}", name, val.to_s(class_env)))
                     .reduce(|str, cur| str + "; " + &cur)
                     .unwrap();
-                format!("{} {{ {}; }}", class.name, props)
+                format!("{}{{{};}}", class.name, props)
             }
             Object::Nil => format!("nil"),
             Object::Keyword(name) => format!(":{}", name),

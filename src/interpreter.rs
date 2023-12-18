@@ -83,6 +83,87 @@ fn match_vec(
             .all(|(a, b)| match_pattern(a, b, class_env))
 }
 
+fn int_method_call(lhs: usize, args: &Vec<Object>) -> Object {
+    match args.as_slice() {
+        [Object::Keyword(name)] if name == "log" => {
+            println!("{}", lhs);
+            Object::Nil
+        }
+        [Object::Operator(op), Object::Int(other_val)] if op == "+" => Object::Int(lhs + other_val),
+        _ => todo!("unknown int method, {:?}", args),
+    }
+}
+
+fn instance_method_call(
+    class_id: &Uuid,
+    properties: &Vec<(String, Object)>,
+    args: &Vec<Object>,
+    env: &HashMap<String, Object>,
+    class_env: &HashMap<Uuid, Class>,
+) -> Object {
+    let keys: HashSet<&String> = properties.iter().map(|(name, _)| name).collect();
+    match args.as_slice() {
+        [Object::Keyword(name)] if keys.get(name).is_some() => properties
+            .iter()
+            .find(|(name_, _)| name == name_)
+            .map(|(_, obj)| obj)
+            .unwrap()
+            .to_owned(),
+
+        [Object::Keyword(name)] if name == "log" => {
+            println!(
+                "{}",
+                Object::Instance(*class_id, properties.to_vec()).to_s(class_env)
+            );
+            Object::Nil
+        }
+        _ => {
+            let class = class_env.get(class_id).unwrap();
+            if let Some((pattern, method)) = class
+                .methods
+                .iter()
+                .find(|(patterns, _)| match_vec(patterns, args, class_env))
+            {
+                let mut env = env.clone();
+                env.insert(
+                    "self".to_string(),
+                    Object::Instance(*class_id, properties.to_owned()),
+                );
+                for (pat, arg) in pattern.iter().zip(args) {
+                    match pat {
+                        Node::IdLookup(name) => {
+                            env.insert(name.to_owned(), arg.to_owned());
+                        }
+                        Node::Keyword(_) => (),
+                        Node::Class(_, _) => panic!(),
+                        Node::MethodCall(_, _) => panic!(),
+                        Node::RecordConstructor(_, _) => panic!(),
+                        Node::Int(_) => (),
+                        Node::Assign(_, _) => panic!(),
+                        Node::Operator(_) => (),
+                        Node::RecordPattern(_, properties) => {
+                            if let Object::Instance(_, props) = arg {
+                                for (name, val) in props {
+                                    if properties.contains(name) {
+                                        env.insert(name.to_owned(), val.to_owned());
+                                    }
+                                }
+                            } else {
+                                panic!("wtf");
+                            }
+                        }
+                    }
+                }
+
+                let result = eval_node(method, &mut env, &mut class_env.clone());
+                result
+            } else {
+                panic!("no method found :(")
+            }
+        }
+    }
+}
+
 fn method_call(
     lhs: &Object,
     args: &Vec<Object>,
@@ -90,89 +171,10 @@ fn method_call(
     class_env: &HashMap<Uuid, Class>,
 ) -> Object {
     match lhs {
-        Object::Int(val) => match args.as_slice() {
-            [Object::Keyword(name)] if name == "log" => {
-                println!("{}", val);
-                Object::Nil
-            }
-            [Object::Operator(op), Object::Int(other_val)] if op == "+" => {
-                Object::Int(val + other_val)
-            }
-            _ => todo!("unknown int method, {:?}", args),
-        },
+        Object::Int(val) => int_method_call(*val, args),
         Object::Instance(class_id, properties) => {
-            let keys: HashSet<&String> = properties.iter().map(|(name, _)| name).collect();
-            match args.as_slice() {
-                [Object::Keyword(name)] if keys.get(name).is_some() => properties
-                    .iter()
-                    .find(|(name_, _)| name == name_)
-                    .map(|(_, obj)| obj)
-                    .unwrap()
-                    .to_owned(),
-
-                [Object::Keyword(name)] if name == "log" => {
-                    println!(
-                        "{}",
-                        Object::Instance(*class_id, properties.to_vec()).to_s(class_env)
-                    );
-                    Object::Nil
-                }
-                _ => {
-                    let class = class_env.get(class_id).unwrap();
-                    if let Some((pattern, method)) = class
-                        .methods
-                        .iter()
-                        .find(|(patterns, _)| match_vec(patterns, args, class_env))
-                    {
-                        // let old_self = env.get("self");
-                        // env.insert(
-                        //     "self".to_string(),
-                        //     Object::Instance(*class_id, properties.to_owned()),
-                        // );
-                        let mut env = env.clone();
-                        env.insert(
-                            "self".to_string(),
-                            Object::Instance(*class_id, properties.to_owned()),
-                        );
-                        for (pat, arg) in pattern.iter().zip(args) {
-                            match pat {
-                                Node::IdLookup(name) => {
-                                    env.insert(name.to_owned(), arg.to_owned());
-                                }
-                                Node::Keyword(_) => (),
-                                Node::Class(_, _) => panic!(),
-                                Node::MethodCall(_, _) => panic!(),
-                                Node::RecordConstructor(_, _) => panic!(),
-                                Node::Int(_) => (),
-                                Node::Assign(_, _) => panic!(),
-                                Node::Operator(_) => (),
-                                Node::RecordPattern(_, properties) => {
-                                    if let Object::Instance(_, props) = arg {
-                                        for (name, val) in props {
-                                            if properties.contains(name) {
-                                                env.insert(name.to_owned(), val.to_owned());
-                                            }
-                                        }
-                                    } else {
-                                        panic!("wtf");
-                                    }
-                                }
-                            }
-                        }
-                        // TODO: &mut class_env.clone() <- this sucks
-                        let result = eval_node(method, &mut env, &mut class_env.clone());
-                        // env.insert(
-                        //     "self".to_string(),
-                        //     old_self.unwrap_or(&Object::Nil).to_owned(),
-                        // );
-                        result
-                    } else {
-                        panic!("no method found :(")
-                    }
-                }
-            }
+            instance_method_call(class_id, properties, args, env, class_env)
         }
-
         _ => panic!("unknown method"),
     }
 }

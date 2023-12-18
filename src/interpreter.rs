@@ -16,6 +16,28 @@ pub enum Object {
     Operator(String),
 }
 
+impl Object {
+    pub fn to_s(&self, class_env: &HashMap<Uuid, Class>) -> String {
+        match self {
+            Object::Instance(class_id, props) => {
+                let class = class_env.get(&class_id).unwrap();
+                let props = props
+                    .iter()
+                    .map(|(name, val)| format!("{}: {}", name, val.to_s(class_env)))
+                    .reduce(|str, cur| str + "; " + &cur)
+                    .unwrap();
+                format!("{} {{ {}; }}", class.name, props)
+            }
+            Object::Nil => format!("nil"),
+            Object::Keyword(name) => format!(":{}", name),
+            Object::Str(name) => format!("\"{}\"", name),
+            Object::Int(val) => format!("{}", val),
+            Object::Class(uuid) => format!("[{}]", class_env.get(&uuid).unwrap().name),
+            Object::Operator(op) => format!("`{}`", op),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Class {
     name: String,
@@ -89,13 +111,10 @@ fn method_call(
                     .to_owned(),
 
                 [Object::Keyword(name)] if name == "log" => {
-                    let class = class_env.get(class_id).unwrap();
-                    let props = properties
-                        .iter()
-                        .map(|(name, val)| format!("{}: {:?}", name, val))
-                        .reduce(|str, cur| str + ", " + &cur)
-                        .unwrap();
-                    println!("{} {{ {} }}", class.name, props);
+                    println!(
+                        "{}",
+                        Object::Instance(*class_id, properties.to_vec()).to_s(class_env)
+                    );
                     Object::Nil
                 }
                 _ => {

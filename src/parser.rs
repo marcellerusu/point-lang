@@ -110,26 +110,6 @@ impl Parser {
         Node::Int(val)
     }
 
-    fn parse_record_expr(&mut self) -> Node {
-        let mut expr = self.parse_single_expr();
-
-        while !self.scan(|t| t.as_comma()) && !self.scan(|t| t.as_close_brace()) {
-            let mut args: Vec<Node> = vec![];
-            while !self.scan(|t| t.as_dot())
-                && !self.scan(|t| t.as_comma())
-                && !self.scan(|t| t.as_close_brace())
-            {
-                args.push(self.parse_single_expr());
-            }
-            expr = Node::MethodCall(Box::new(expr), args);
-            if self.scan(|t| t.as_dot()) {
-                self.consume(|t| t.as_dot());
-            }
-        }
-
-        expr
-    }
-
     fn parse_record_constructor(&mut self) -> Node {
         let name = self.consume(|t| t.as_id());
         self.consume(|t| t.as_open_brace());
@@ -138,10 +118,7 @@ impl Parser {
         while !self.scan(|t| t.as_close_brace()) {
             let name = self.consume(|t| t.as_id());
             self.consume(|t| t.as_colon());
-            properties.push((name.clone(), self.parse_record_expr()));
-            if !self.scan(|t| t.as_close_brace()) {
-                self.consume(|t| t.as_comma());
-            }
+            properties.push((name.clone(), self.parse_expr()));
         }
         self.consume(|t| t.as_close_brace());
 
@@ -164,7 +141,7 @@ impl Parser {
             let name = self.consume(|t| t.as_id());
 
             if !self.scan(|t| t.as_close_brace()) {
-                self.consume(|t| t.as_comma());
+                self.consume(|t| t.as_end_token());
             }
             args.insert(name);
         }

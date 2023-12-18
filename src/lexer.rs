@@ -12,7 +12,6 @@ pub enum Token {
     ColonEq,
     Def,
     Colon,
-    Comma,
     Arrow,
     Int(usize),
     Operator(String),
@@ -91,12 +90,6 @@ impl Token {
             _ => None,
         }
     }
-    pub fn as_comma(&self) -> Option<()> {
-        match self {
-            Token::Comma => Some(()),
-            _ => None,
-        }
-    }
     pub fn as_int(&self) -> Option<usize> {
         match self {
             Token::Int(val) => Some(*val),
@@ -171,9 +164,6 @@ pub fn tokenize(program_string: String) -> Vec<Token> {
         } else if program_string.get(idx..(idx + 1)) == Some("}") {
             idx += 1;
             tokens.push(Token::CloseBrace);
-        } else if program_string.get(idx..(idx + 1)) == Some(",") {
-            idx += 1;
-            tokens.push(Token::Comma);
         } else if program_string.get(idx..(idx + 5)) == Some("class") {
             idx += 5;
             tokens.push(Token::Class);

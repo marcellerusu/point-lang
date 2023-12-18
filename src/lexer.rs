@@ -109,7 +109,12 @@ pub fn tokenize(program_string: String) -> Vec<Token> {
     let two_char_operators = HashSet::from(["**", ">=", "<=", "==", "&&", "||"]);
 
     while idx < program_string.len() {
-        if program_string.get(idx..(idx + 1)) == Some("\n") {
+        if program_string.get(idx..(idx + 2)) == Some("--") {
+            idx += 2;
+            while program_string.get(idx..(idx + 1)) != Some("\n") {
+                idx += 1;
+            }
+        } else if program_string.get(idx..(idx + 1)) == Some("\n") {
             idx += 1;
         } else if program_string.get(idx..(idx + 1)) == Some(" ") {
             idx += 1;

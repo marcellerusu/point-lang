@@ -10,7 +10,7 @@ class Point
     Point{x: self :x. + x; y: self :y. + y;};
 end
 
-Point{x: 10, y: 10} + Point{x: 10, y: 11};
+Point{x: 10; y: 10;} + Point{x: 10; y: 11;};
 ```
 
 # Syntax
@@ -36,6 +36,9 @@ true;
 
 -- operators are data literals just like true & false
 +;
+
+-- lists
+[1; 2;];
 ```
 
 ## Assignment

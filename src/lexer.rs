@@ -9,6 +9,8 @@ pub enum Token {
     Id(String),
     OpenBrace,
     CloseBrace,
+    OpenSqBrace,
+    CloseSqBrace,
     ColonEq,
     Def,
     Colon,
@@ -57,6 +59,18 @@ impl Token {
     pub fn as_id(&self) -> Option<String> {
         match self {
             Token::Id(name) => Some(name.to_owned()),
+            _ => None,
+        }
+    }
+    pub fn as_open_sq_brace(&self) -> Option<()> {
+        match self {
+            Token::OpenSqBrace => Some(()),
+            _ => None,
+        }
+    }
+    pub fn as_close_sq_brace(&self) -> Option<()> {
+        match self {
+            Token::CloseSqBrace => Some(()),
             _ => None,
         }
     }
@@ -169,6 +183,12 @@ pub fn tokenize(program_string: String) -> Vec<Token> {
         } else if program_string.get(idx..(idx + 1)) == Some("}") {
             idx += 1;
             tokens.push(Token::CloseBrace);
+        } else if program_string.get(idx..(idx + 1)) == Some("[") {
+            idx += 1;
+            tokens.push(Token::OpenSqBrace);
+        } else if program_string.get(idx..(idx + 1)) == Some("]") {
+            idx += 1;
+            tokens.push(Token::CloseSqBrace);
         } else if program_string.get(idx..(idx + 5)) == Some("class") {
             idx += 5;
             tokens.push(Token::Class);

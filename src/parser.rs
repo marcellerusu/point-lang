@@ -13,6 +13,7 @@ pub enum Node {
     Assign(String, Box<Node>),
     Operator(String),
     RecordPattern(String, HashSet<String>),
+    List(Vec<Node>),
 }
 
 #[derive(Clone)]
@@ -77,6 +78,8 @@ impl Parser {
             self.parse_int()
         } else if self.scan(|t| t.as_operator()) {
             self.parse_operator()
+        } else if self.scan(|t| t.as_open_sq_brace()) {
+            self.parse_list_literal()
         } else if let Some([Token::Id(_), Token::OpenBrace]) =
             self.tokens.get(self.idx..(self.idx + 2))
         {
@@ -87,6 +90,16 @@ impl Parser {
             println!("hm {:?}", self.tokens.get(self.idx..));
             panic!("no expr found")
         }
+    }
+
+    fn parse_list_literal(&mut self) -> Node {
+        self.consume(|t| t.as_open_sq_brace());
+        let mut elements: Vec<Node> = vec![];
+        while !self.scan(|t| t.as_close_sq_brace()) {
+            elements.push(self.parse_expr());
+        }
+        self.consume(|t| t.as_close_sq_brace());
+        Node::List(elements)
     }
 
     fn parse_operator(&mut self) -> Node {

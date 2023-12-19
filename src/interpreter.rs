@@ -14,6 +14,7 @@ pub enum Object {
     Instance(Uuid, Vec<(String, Object)>),
     Class(Uuid),
     Operator(String),
+    List(Vec<Object>),
 }
 
 impl Object {
@@ -34,6 +35,16 @@ impl Object {
             Object::Int(val) => format!("{}", val),
             Object::Class(uuid) => format!("[{}]", class_env.get(&uuid).unwrap().name),
             Object::Operator(op) => format!("`{}`", op),
+            Object::List(items) => {
+                format!(
+                    "[{};]",
+                    items
+                        .iter()
+                        .map(|item| item.to_s(class_env))
+                        .reduce(|a, b| a + "; " + &b)
+                        .unwrap()
+                )
+            }
         }
     }
 }
@@ -68,6 +79,9 @@ fn match_pattern(a: &Node, b: &Object, class_env: &HashMap<Uuid, Class>) -> bool
         }
         (Node::RecordPattern(_, _), Object::Class(_)) => todo!(),
         (Node::RecordPattern(_, _), Object::Operator(_)) => todo!(),
+        (Node::RecordPattern(_, _), Object::List(_)) => todo!(),
+        (Node::List(a), Object::List(b)) => match_vec(a, b, class_env),
+        (Node::List(_), _) => false,
     }
 }
 
@@ -91,6 +105,20 @@ fn int_method_call(lhs: usize, args: &Vec<Object>) -> Object {
         }
         [Object::Operator(op), Object::Int(other_val)] if op == "+" => Object::Int(lhs + other_val),
         _ => todo!("unknown int method, {:?}", args),
+    }
+}
+
+fn list_method_call(
+    items: &Vec<Object>,
+    args: &Vec<Object>,
+    class_env: &HashMap<Uuid, Class>,
+) -> Object {
+    match args.as_slice() {
+        [Object::Keyword(name)] if name == "log" => {
+            println!("{}", Object::List(items.to_vec()).to_s(class_env));
+            Object::Nil
+        }
+        _ => todo!("unknown list method, {:?}", args),
     }
 }
 
@@ -152,6 +180,7 @@ fn instance_method_call(
                                 panic!("wtf");
                             }
                         }
+                        Node::List(_) => todo!("hmmm"),
                     }
                 }
 
@@ -175,6 +204,7 @@ fn method_call(
         Object::Instance(class_id, properties) => {
             instance_method_call(class_id, properties, args, env, class_env)
         }
+        Object::List(items) => list_method_call(items, args, class_env),
         _ => panic!("unknown method"),
     }
 }
@@ -244,6 +274,12 @@ fn eval_node(
         }
         Node::Operator(name) => Object::Operator(name.to_owned()),
         Node::RecordPattern(_, _) => todo!("invalid expr"),
+        Node::List(items) => Object::List(
+            items
+                .iter()
+                .map(|item| eval_node(item, env, class_env))
+                .collect(),
+        ),
     }
 }
 

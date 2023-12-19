@@ -1,2 +1,7 @@
-[1; 2; 3;] :log;
+class Test
+  def [a; b;] -> a + b;
+end
+
+Test{} [1; 2;].
+  :log;
 

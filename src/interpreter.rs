@@ -180,7 +180,20 @@ fn instance_method_call(
                                 panic!("wtf");
                             }
                         }
-                        Node::List(_) => todo!("hmmm"),
+                        Node::List(nodes) => {
+                            if let Object::List(objs) = arg {
+                                for (node, val) in nodes.iter().zip(objs) {
+                                    match node {
+                                        Node::IdLookup(name) => {
+                                            env.insert(name.to_owned(), val.to_owned());
+                                        }
+                                        _ => (),
+                                    }
+                                }
+                            } else {
+                                panic!("!");
+                            }
+                        }
                     }
                 }
 

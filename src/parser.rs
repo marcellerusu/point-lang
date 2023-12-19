@@ -5,7 +5,8 @@ use crate::lexer::Token;
 #[derive(Debug, PartialEq, Clone)]
 pub enum Node {
     Keyword(String),
-    Class(String, Vec<(Vec<Node>, Node)>),
+    Def(Vec<Node>, Box<Node>),
+    Class(String, Vec<Node>),
     MethodCall(Box<Node>, Vec<Node>),
     RecordConstructor(String, Vec<(String, Node)>),
     Int(usize),
@@ -50,6 +51,8 @@ impl Parser {
     fn parse_expr(&mut self) -> Node {
         if let Some([Token::Id(_), Token::ColonEq]) = self.tokens.get(self.idx..(self.idx + 2)) {
             self.parse_assign()
+        } else if self.scan(|t| t.as_def()) {
+            self.parse_method()
         } else {
             let mut expr = self.parse_single_expr();
 
@@ -162,7 +165,7 @@ impl Parser {
         Node::RecordPattern(name, args)
     }
 
-    fn parse_method(&mut self) -> (Vec<Node>, Node) {
+    fn parse_method(&mut self) -> Node {
         self.consume(|t| t.as_def());
         let mut args: Vec<Node> = vec![];
         while !self.scan(|t| t.as_arrow()) {
@@ -170,13 +173,13 @@ impl Parser {
         }
         self.consume(|t| t.as_arrow());
         let body = self.parse_expr();
-        (args, body)
+        Node::Def(args, Box::new(body))
     }
 
     fn parse_class(&mut self) -> Node {
         self.consume(|t| t.as_class());
         let name = self.consume(|t| t.as_id());
-        let mut methods: Vec<(Vec<Node>, Node)> = vec![];
+        let mut methods: Vec<Node> = vec![];
         while self.scan(|t| t.as_def()) {
             methods.push(self.parse_method());
         }

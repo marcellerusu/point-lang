@@ -1,6 +1,4 @@
-class Test
-  def [a; b;] -> a + b;
-end
+def [a; b;] -> a + b;
 
-Test{} [1; 2;].
+self [1; 2;].
   :log;

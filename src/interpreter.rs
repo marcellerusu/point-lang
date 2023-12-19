@@ -52,7 +52,7 @@ impl Object {
 #[derive(Debug, Clone)]
 pub struct Class {
     name: String,
-    methods: Vec<(Vec<Node>, Node)>,
+    methods: Vec<Node>,
 }
 
 fn match_pattern(a: &Node, b: &Object, class_env: &HashMap<Uuid, Class>) -> bool {
@@ -82,6 +82,7 @@ fn match_pattern(a: &Node, b: &Object, class_env: &HashMap<Uuid, Class>) -> bool
         (Node::RecordPattern(_, _), Object::List(_)) => todo!(),
         (Node::List(a), Object::List(b)) => match_vec(a, b, class_env),
         (Node::List(_), _) => false,
+        (Node::Def(_, _), _) => todo!(),
     }
 }
 
@@ -150,6 +151,10 @@ fn instance_method_call(
             if let Some((pattern, method)) = class
                 .methods
                 .iter()
+                .filter_map(|t| match t {
+                    Node::Def(args, body) => Some((args, body)),
+                    _ => None,
+                })
                 .find(|(patterns, _)| match_vec(patterns, args, class_env))
             {
                 let mut env = env.clone();
@@ -194,6 +199,7 @@ fn instance_method_call(
                                 panic!("!");
                             }
                         }
+                        Node::Def(_, _) => todo!(),
                     }
                 }
 
@@ -218,7 +224,7 @@ fn method_call(
             instance_method_call(class_id, properties, args, env, class_env)
         }
         Object::List(items) => list_method_call(items, args, class_env),
-        _ => panic!("unknown method"),
+        _ => panic!("unknown method {:?}", lhs),
     }
 }
 
@@ -242,7 +248,7 @@ fn eval_node(
             )
         }
         Node::Keyword(name) => Object::Keyword(name.to_owned()),
-        Node::Class(name, methods) => {
+        Node::Class(name, defs) => {
             let uuid = Uuid::new_v4();
             env.insert(name.to_owned(), Object::Class(uuid));
 
@@ -250,7 +256,7 @@ fn eval_node(
                 uuid,
                 Class {
                     name: name.to_owned(),
-                    methods: methods.to_vec(),
+                    methods: defs.to_vec(),
                 },
             );
 
@@ -293,12 +299,31 @@ fn eval_node(
                 .map(|item| eval_node(item, env, class_env))
                 .collect(),
         ),
+        Node::Def(args, body) => {
+            if let Some(Object::Instance(id, _)) = env.get("self") {
+                let class = class_env.get_mut(id).unwrap();
+                class
+                    .methods
+                    .push(Node::Def(args.to_owned(), body.to_owned()));
+                Object::Nil
+            } else {
+                panic!("No self")
+            }
+        }
     }
 }
 
 pub fn interpret(ast: Vec<Node>) -> Object {
-    let mut class_env: HashMap<Uuid, Class> = HashMap::new();
-    let mut env: HashMap<String, Object> = HashMap::new();
+    let main_id = Uuid::new_v4();
+    let mut class_env: HashMap<Uuid, Class> = HashMap::from([(
+        main_id,
+        Class {
+            name: "Main".to_string(),
+            methods: vec![],
+        },
+    )]);
+    let mut env: HashMap<String, Object> =
+        HashMap::from([("self".to_owned(), Object::Instance(main_id, vec![]))]);
     let mut result: Object = Object::Nil;
 
     ast.iter()

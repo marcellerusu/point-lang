@@ -1,4 +1,6 @@
-def [a; b;] -> a + b;
+class Test
+  def :sum [a; b;] -> a + b;
+end
 
-self [1; 2;].
+Test{} :sum [1; 2;].
   :log;

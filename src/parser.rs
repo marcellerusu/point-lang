@@ -180,8 +180,8 @@ impl Parser {
         self.consume(|t| t.as_class());
         let name = self.consume(|t| t.as_id());
         let mut methods: Vec<Node> = vec![];
-        while self.scan(|t| t.as_def()) {
-            methods.push(self.parse_method());
+        while !self.scan(|t| t.as_end_token()) {
+            methods.push(self.parse_expr());
         }
         Node::Class(name.clone(), methods)
     }

@@ -25,9 +25,10 @@ impl Object {
                 let props = props
                     .iter()
                     .map(|(name, val)| format!("{}: {}", name, val.to_s(class_env)))
-                    .reduce(|str, cur| str + "; " + &cur)
-                    .unwrap();
-                format!("{}{{{};}}", class.name, props)
+                    .reduce(|str, cur| format!("{} ; {}", str, cur))
+                    .map(|s| s + ";")
+                    .unwrap_or("".to_owned());
+                format!("{}{{{}}}", class.name, props)
             }
             Object::Nil => format!("nil"),
             Object::Keyword(name) => format!(":{}", name),
@@ -256,9 +257,17 @@ fn eval_node(
                 uuid,
                 Class {
                     name: name.to_owned(),
-                    methods: defs.to_vec(),
+                    methods: vec![],
                 },
             );
+
+            let mut child_env = env.clone();
+            // TODO: this should probably be an instance of "Class"
+            child_env.insert("self".to_owned(), Object::Instance(uuid, vec![]));
+
+            for def in defs {
+                eval_node(def, &mut child_env, class_env);
+            }
 
             Object::Class(uuid)
         }

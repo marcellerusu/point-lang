@@ -1,4 +1,4 @@
-# Pnt Lang
+# Point Lang
 
 Message-oriented programming
 
@@ -104,7 +104,3 @@ Let's start with a sane simple question, fizz buzz. If a number is divisible by 
 Q: I tried to run that fizzbuzz example, it didn't compile..
 
 A: Yes, I lied. One day it might work that way, but right now it's fairly limited.
-
-Q: How do you pronounce pnt?
-
-A: "point"

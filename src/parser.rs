@@ -15,6 +15,7 @@ pub enum Node {
     Operator(String),
     RecordPattern(String, HashSet<String>),
     List(Vec<Node>),
+    Str(String),
 }
 
 #[derive(Clone)]
@@ -89,10 +90,17 @@ impl Parser {
             self.parse_record_constructor()
         } else if self.scan(|t| t.as_id()) {
             self.parse_id()
+        } else if self.scan(|t| t.as_str()) {
+            self.parse_str()
         } else {
             println!("hm {:?}", self.tokens.get(self.idx..));
             panic!("no expr found")
         }
+    }
+
+    fn parse_str(&mut self) -> Node {
+        let val = self.consume(|t| t.as_str());
+        Node::Str(val)
     }
 
     fn parse_list_literal(&mut self) -> Node {

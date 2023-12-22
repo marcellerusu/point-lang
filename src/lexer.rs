@@ -17,6 +17,7 @@ pub enum Token {
     Arrow,
     Int(usize),
     Operator(String),
+    Str(String),
 }
 
 impl Token {
@@ -110,6 +111,12 @@ impl Token {
             _ => None,
         }
     }
+    pub fn as_str(&self) -> Option<String> {
+        match self {
+            Token::Str(str) => Some(str.to_owned()),
+            _ => None,
+        }
+    }
 }
 
 pub fn tokenize(program_string: String) -> Vec<Token> {
@@ -195,6 +202,15 @@ pub fn tokenize(program_string: String) -> Vec<Token> {
         } else if program_string.get(idx..(idx + 3)) == Some("def") {
             idx += 3;
             tokens.push(Token::Def);
+        } else if program_string.get(idx..(idx + 1)) == Some("\"") {
+            idx += 1;
+            let mut str = "".to_string();
+            while let Some(val) = program_string.get(idx..(idx + 1)).filter(|x| x != &"\"") {
+                str.push(val.chars().next().unwrap());
+                idx += 1;
+            }
+            idx += 1;
+            tokens.push(Token::Str(str));
         } else if program_string
             .chars()
             .skip(idx)

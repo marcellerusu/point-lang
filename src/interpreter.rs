@@ -84,6 +84,8 @@ fn match_pattern(a: &Node, b: &Object, class_env: &HashMap<Uuid, Class>) -> bool
         (Node::List(a), Object::List(b)) => match_vec(a, b, class_env),
         (Node::List(_), _) => false,
         (Node::Def(_, _), _) => todo!(),
+        (Node::Str(a), Object::Str(b)) => a == b,
+        (Node::Str(_), _) => false,
     }
 }
 
@@ -107,6 +109,16 @@ fn int_method_call(lhs: usize, args: &Vec<Object>) -> Object {
         }
         [Object::Operator(op), Object::Int(other_val)] if op == "+" => Object::Int(lhs + other_val),
         _ => todo!("unknown int method, {:?}", args),
+    }
+}
+
+fn str_method_call(lhs: &String, args: &Vec<Object>) -> Object {
+    match args.as_slice() {
+        [Object::Keyword(name)] if name == "log" => {
+            println!("{}", lhs);
+            Object::Nil
+        }
+        _ => todo!("unknown str method, {:?}", args),
     }
 }
 
@@ -201,6 +213,7 @@ fn instance_method_call(
                             }
                         }
                         Node::Def(_, _) => todo!(),
+                        Node::Str(_) => (),
                     }
                 }
 
@@ -225,6 +238,7 @@ fn method_call(
             instance_method_call(class_id, properties, args, env, class_env)
         }
         Object::List(items) => list_method_call(items, args, class_env),
+        Object::Str(val) => str_method_call(val, args),
         _ => panic!("unknown method {:?}", lhs),
     }
 }
@@ -319,6 +333,7 @@ fn eval_node(
                 panic!("No self")
             }
         }
+        Node::Str(val) => Object::Str(val.to_owned()),
     }
 }
 

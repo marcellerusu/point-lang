@@ -1,6 +1,1 @@
-class Test
-  def :sum [a; b;] -> a + b;
-end
-
-Test{} :sum [1; 2;].
-  :log;
+"hello" :log;

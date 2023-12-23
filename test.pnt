@@ -1,5 +1,6 @@
 obj := object
-  def {method;} -> method;
+  def lhs {method; args: [arg;];} -> lhs method arg;
 end
 
-obj {method: "hello";}. :log;
+obj 10 {method: +; args: [1;];}.
+  :log;

@@ -22,13 +22,17 @@ impl Object {
         match self {
             Object::Instance(class_id, props) => {
                 let class = class_env.get(&class_id).unwrap();
-                let props = props
-                    .iter()
-                    .map(|(name, val)| format!("{}: {}", name, val.to_s(class_env)))
-                    .reduce(|str, cur| format!("{} ; {}", str, cur))
-                    .map(|s| s + ";")
-                    .unwrap_or("".to_owned());
-                format!("{}{{{}}}", class.name, props)
+                if ["Int", "String"].contains(&class.name.as_str()) {
+                    props.get(0).unwrap().1.to_s(class_env)
+                } else {
+                    let props = props
+                        .iter()
+                        .map(|(name, val)| format!("{}: {}", name, val.to_s(class_env)))
+                        .reduce(|str, cur| format!("{}; {}", str, cur))
+                        .map(|s| s + ";")
+                        .unwrap_or("".to_owned());
+                    format!("{}{{{}}}", class.name, props)
+                }
             }
             Object::Nil => format!("nil"),
             Object::Keyword(name) => format!(":{}", name),
@@ -62,7 +66,12 @@ fn match_pattern(a: &Node, b: &Object, class_env: &HashMap<Uuid, Class>) -> bool
         (Node::Keyword(_), _) => false,
         (Node::Class(_, _), _) => todo!("class eq"),
         (Node::MethodCall(_, _), _) => todo!("not sure"),
-        (Node::RecordConstructor(_, _), _) => todo!("ehh"),
+        (Node::RecordConstructor(a, r_props), Object::Instance(id, props)) => {
+            let keys: HashSet<String> = r_props.iter().map(|t| t.0.clone()).collect();
+            class_env.get(id).map(|c| &c.name == a).unwrap_or(false)
+                && props.iter().all(|(k, _)| keys.contains(k))
+        }
+        (Node::RecordConstructor(_, _), _) => false,
         (Node::Int(a), Object::Int(b)) => a == b,
         (Node::Int(_), _) => false,
         (Node::IdLookup(name), _) if name == "self" => panic!("self is not a valid pattern"),
@@ -70,17 +79,6 @@ fn match_pattern(a: &Node, b: &Object, class_env: &HashMap<Uuid, Class>) -> bool
         (Node::Assign(_, _), _) => panic!("NOT SURE ABOUT THIS"),
         (Node::Operator(a), Object::Operator(b)) => a == b,
         (Node::Operator(_), _) => false,
-        (Node::RecordPattern(_, _), Object::Nil) => false,
-        (Node::RecordPattern(_, _), Object::Keyword(_)) => false,
-        (Node::RecordPattern(_, _), Object::Str(_)) => false,
-        (Node::RecordPattern(_, _), Object::Int(_)) => false,
-        (Node::RecordPattern(a, keys), Object::Instance(id, props)) => {
-            class_env.get(id).map(|c| &c.name == a).unwrap_or(false)
-                && props.iter().all(|(k, _)| keys.contains(k))
-        }
-        (Node::RecordPattern(_, _), Object::Class(_)) => todo!(),
-        (Node::RecordPattern(_, _), Object::Operator(_)) => todo!(),
-        (Node::RecordPattern(_, _), Object::List(_)) => todo!(),
         (Node::List(a), Object::List(b)) => match_vec(a, b, class_env),
         (Node::List(_), _) => false,
         (Node::Def(_, _), _) => todo!(),
@@ -101,14 +99,31 @@ fn match_vec(
             .all(|(a, b)| match_pattern(a, b, class_env))
 }
 
-fn int_method_call(lhs: usize, args: &Vec<Object>) -> Object {
+fn int_method_call(
+    lhs: usize,
+    args: &Vec<Object>,
+    env: &HashMap<String, Object>,
+    class_env: &HashMap<Uuid, Class>,
+) -> Object {
     match args.as_slice() {
         [Object::Keyword(name)] if name == "log" => {
             println!("{}", lhs);
             Object::Nil
         }
         [Object::Operator(op), Object::Int(other_val)] if op == "+" => Object::Int(lhs + other_val),
-        _ => todo!("unknown int method, {:?}", args),
+        _ => {
+            if let Some(Object::Class(class_id)) = env.get("Int") {
+                instance_method_call(
+                    class_id,
+                    &vec![("value".to_owned(), Object::Int(lhs))],
+                    args,
+                    env,
+                    class_env,
+                )
+            } else {
+                panic!("wtf");
+            }
+        }
     }
 }
 
@@ -183,14 +198,12 @@ fn instance_method_call(
                         Node::Keyword(_) => (),
                         Node::Class(_, _) => panic!(),
                         Node::MethodCall(_, _) => panic!(),
-                        Node::RecordConstructor(_, _) => panic!(),
-                        Node::Int(_) => (),
-                        Node::Assign(_, _) => panic!(),
-                        Node::Operator(_) => (),
-                        Node::RecordPattern(_, properties) => {
+                        Node::RecordConstructor(_, properties) => {
                             if let Object::Instance(_, props) = arg {
+                                let keys: HashSet<String> =
+                                    properties.iter().map(|t| t.0.clone()).collect();
                                 for (name, val) in props {
-                                    if properties.contains(name) {
+                                    if keys.contains(name) {
                                         env.insert(name.to_owned(), val.to_owned());
                                     }
                                 }
@@ -198,6 +211,9 @@ fn instance_method_call(
                                 panic!("wtf");
                             }
                         }
+                        Node::Int(_) => (),
+                        Node::Assign(_, _) => panic!(),
+                        Node::Operator(_) => (),
                         Node::List(nodes) => {
                             if let Object::List(objs) = arg {
                                 for (node, val) in nodes.iter().zip(objs) {
@@ -233,7 +249,7 @@ fn method_call(
     class_env: &HashMap<Uuid, Class>,
 ) -> Object {
     match lhs {
-        Object::Int(val) => int_method_call(*val, args),
+        Object::Int(val) => int_method_call(*val, args, env, class_env),
         Object::Instance(class_id, properties) => {
             instance_method_call(class_id, properties, args, env, class_env)
         }
@@ -315,7 +331,6 @@ fn eval_node(
             Object::Nil
         }
         Node::Operator(name) => Object::Operator(name.to_owned()),
-        Node::RecordPattern(_, _) => todo!("invalid expr"),
         Node::List(items) => Object::List(
             items
                 .iter()

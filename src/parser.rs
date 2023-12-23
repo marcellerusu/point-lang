@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use crate::lexer::Token;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -13,7 +11,6 @@ pub enum Node {
     IdLookup(String),
     Assign(String, Box<Node>),
     Operator(String),
-    RecordPattern(String, HashSet<String>),
     List(Vec<Node>),
     Str(String),
 }
@@ -141,43 +138,24 @@ impl Parser {
 
         while !self.scan(|t| t.as_close_brace()) {
             let name = self.consume(|t| t.as_id());
-            self.consume(|t| t.as_colon());
-            properties.push((name.clone(), self.parse_expr()));
+            if self.scan(|t| t.as_colon()) {
+                self.consume(|t| t.as_colon());
+                properties.push((name.clone(), self.parse_expr()));
+            } else {
+                properties.push((name.clone(), Node::IdLookup(name.clone())));
+                self.consume(|t| t.as_end_token());
+            }
         }
         self.consume(|t| t.as_close_brace());
 
         Node::RecordConstructor(name.clone(), properties)
     }
 
-    fn parse_pattern(&mut self) -> Node {
-        if let Some([Token::Id(_), Token::OpenBrace]) = self.tokens.get(self.idx..(self.idx + 2)) {
-            self.parse_record_pattern()
-        } else {
-            self.parse_single_expr()
-        }
-    }
-
-    fn parse_record_pattern(&mut self) -> Node {
-        let name = self.consume(|t| t.as_id());
-        self.consume(|t| t.as_open_brace());
-        let mut args: HashSet<String> = HashSet::from([]);
-        while !self.scan(|t| t.as_close_brace()) {
-            let name = self.consume(|t| t.as_id());
-
-            if !self.scan(|t| t.as_close_brace()) {
-                self.consume(|t| t.as_end_token());
-            }
-            args.insert(name);
-        }
-        self.consume(|t| t.as_close_brace());
-        Node::RecordPattern(name, args)
-    }
-
     fn parse_method(&mut self) -> Node {
         self.consume(|t| t.as_def());
         let mut args: Vec<Node> = vec![];
         while !self.scan(|t| t.as_arrow()) {
-            args.push(self.parse_pattern());
+            args.push(self.parse_single_expr());
         }
         self.consume(|t| t.as_arrow());
         let body = self.parse_expr();

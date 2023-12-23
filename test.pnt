@@ -1,1 +1,6 @@
-"hello" :log;
+class A
+  def A{name;} -> name;
+end
+
+A{} A{name: "marcelle";}.
+  :log;

@@ -127,7 +127,8 @@ pub fn tokenize(program_string: String) -> Vec<Token> {
     let end_chars = HashSet::from([".", ";", " ", "}", ")"]);
 
     let one_char_operators = HashSet::from(["+", "-", "*", "/", "%", ">", "<", "=", "|", "&"]);
-    let two_char_operators = HashSet::from(["**", ">=", "<=", "==", "&&", "||"]);
+    let two_char_operators = HashSet::from(["**", ">=", "<=", "==", "&&", "||", ".."]);
+    let three_char_operators = HashSet::from(["..="]);
 
     while idx < program_string.len() {
         if program_string.get(idx..(idx + 2)) == Some("--") {
@@ -162,6 +163,12 @@ pub fn tokenize(program_string: String) -> Vec<Token> {
             .filter(|item| two_char_operators.get(item).is_some())
         {
             idx += 2;
+            tokens.push(Token::Operator(op.to_string()))
+        } else if let Some(op) = program_string
+            .get(idx..(idx + 3))
+            .filter(|item| three_char_operators.get(item).is_some())
+        {
+            idx += 3;
             tokens.push(Token::Operator(op.to_string()))
         } else if program_string.get(idx..(idx + 1)) == Some(":") {
             idx += 1;

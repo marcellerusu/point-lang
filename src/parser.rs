@@ -7,6 +7,7 @@ pub enum Node {
     Class(String, Vec<Node>),
     MethodCall(Box<Node>, Vec<Node>),
     RecordConstructor(String, Vec<(String, Node)>),
+    VectorConstructor(String, Vec<Node>),
     Int(usize),
     IdLookup(String),
     Assign(String, Box<Node>),
@@ -81,6 +82,10 @@ impl Parser {
             self.parse_operator()
         } else if self.scan(|t| t.as_open_sq_brace()) {
             self.parse_list_literal()
+        } else if let Some([Token::Id(_), Token::OpenSqBrace]) =
+            self.tokens.get(self.idx..(self.idx + 2))
+        {
+            self.parse_vector_constructor()
         } else if let Some([Token::Id(_), Token::OpenBrace]) =
             self.tokens.get(self.idx..(self.idx + 2))
         {
@@ -129,6 +134,17 @@ impl Parser {
     fn parse_int(&mut self) -> Node {
         let val = self.consume(|t| t.as_int());
         Node::Int(val)
+    }
+
+    fn parse_vector_constructor(&mut self) -> Node {
+        let name = self.consume(|t| t.as_id());
+        self.consume(|t| t.as_open_sq_brace());
+        let mut exprs = vec![];
+        while !self.scan(|t| t.as_close_sq_brace()) {
+            exprs.push(self.parse_expr());
+        }
+        self.consume(|t| t.as_close_sq_brace());
+        Node::VectorConstructor(name, exprs)
     }
 
     fn parse_record_constructor(&mut self) -> Node {

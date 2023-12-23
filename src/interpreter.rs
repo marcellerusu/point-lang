@@ -84,6 +84,26 @@ fn match_pattern(a: &Node, b: &Object, class_env: &HashMap<Uuid, Class>) -> bool
         (Node::Def(_, _), _) => todo!(),
         (Node::Str(a), Object::Str(b)) => a == b,
         (Node::Str(_), _) => false,
+        (Node::VectorConstructor(name, values), Object::Instance(id, props)) => {
+            assert!(values.len() == 1 && props.len() == 1);
+            if !class_env.get(id).map(|c| &c.name == name).unwrap_or(false) {
+                return false;
+            }
+
+            let lhs = values.first().unwrap();
+            let (name, val) = props.first().unwrap();
+            name == "value" && match_pattern(lhs, val, class_env)
+        }
+        (Node::VectorConstructor(name, values), Object::Keyword(_)) => {
+            values.len() == 1 && name == "Keyword"
+        }
+        (Node::VectorConstructor(name, values), Object::Str(_)) => {
+            values.len() == 1 && name == "Str"
+        }
+        (Node::VectorConstructor(name, values), Object::Int(_)) => {
+            values.len() == 1 && name == "Int"
+        }
+        (Node::VectorConstructor(_, _), _) => false,
     }
 }
 
@@ -230,6 +250,14 @@ fn instance_method_call(
                         }
                         Node::Def(_, _) => todo!(),
                         Node::Str(_) => (),
+                        Node::VectorConstructor(_, exprs) => {
+                            assert!(exprs.len() == 1);
+                            if let [Node::IdLookup(name)] = exprs.as_slice() {
+                                env.insert(name.to_owned(), arg.to_owned());
+                            } else {
+                                panic!("vector failure")
+                            }
+                        }
                     }
                 }
 
@@ -349,6 +377,15 @@ fn eval_node(
             }
         }
         Node::Str(val) => Object::Str(val.to_owned()),
+        Node::VectorConstructor(name, exprs) => {
+            assert!(exprs.len() == 1);
+            let expr = eval_node(exprs.first().unwrap(), env, class_env);
+            if let Some(Object::Class(id)) = env.get(name) {
+                Object::Instance(*id, vec![("value".to_owned(), expr)])
+            } else {
+                panic!("no class found {}", name)
+            }
+        }
     }
 }
 

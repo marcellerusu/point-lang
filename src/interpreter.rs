@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::parser::Node;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Object {
     Nil,
     Keyword(String),
@@ -60,7 +60,12 @@ pub struct Class {
     methods: Vec<Node>,
 }
 
-fn match_pattern(a: &Node, b: &Object, class_env: &HashMap<Uuid, Class>) -> bool {
+fn match_pattern(
+    a: &Node,
+    b: &Object,
+    env: &HashMap<String, Object>,
+    class_env: &HashMap<Uuid, Class>,
+) -> bool {
     match (a, b) {
         (Node::Keyword(a), Object::Keyword(b)) => a == b,
         (Node::Keyword(_), _) => false,
@@ -79,7 +84,7 @@ fn match_pattern(a: &Node, b: &Object, class_env: &HashMap<Uuid, Class>) -> bool
         (Node::Assign(_, _), _) => panic!("NOT SURE ABOUT THIS"),
         (Node::Operator(a), Object::Operator(b)) => a == b,
         (Node::Operator(_), _) => false,
-        (Node::List(a), Object::List(b)) => match_vec(a, b, class_env),
+        (Node::List(a), Object::List(b)) => match_vec(a, b, env, class_env),
         (Node::List(_), _) => false,
         (Node::Def(_, _), _) => todo!(),
         (Node::Str(a), Object::Str(b)) => a == b,
@@ -92,7 +97,7 @@ fn match_pattern(a: &Node, b: &Object, class_env: &HashMap<Uuid, Class>) -> bool
 
             let lhs = values.first().unwrap();
             let (name, val) = props.first().unwrap();
-            name == "value" && match_pattern(lhs, val, class_env)
+            name == "value" && match_pattern(lhs, val, env, class_env)
         }
         (Node::VectorConstructor(name, values), Object::Keyword(_)) => {
             values.len() == 1 && name == "Keyword"
@@ -104,19 +109,21 @@ fn match_pattern(a: &Node, b: &Object, class_env: &HashMap<Uuid, Class>) -> bool
             values.len() == 1 && name == "Int"
         }
         (Node::VectorConstructor(_, _), _) => false,
+        (Node::Unquote(name), rhs) => env.get(name).map(|lhs| lhs == rhs).unwrap_or(false),
     }
 }
 
 fn match_vec(
     method_args: &Vec<Node>,
     args: &Vec<Object>,
+    env: &HashMap<String, Object>,
     class_env: &HashMap<Uuid, Class>,
 ) -> bool {
     method_args.len() == args.len()
         && method_args
             .iter()
             .zip(args)
-            .all(|(a, b)| match_pattern(a, b, class_env))
+            .all(|(a, b)| match_pattern(a, b, env, class_env))
 }
 
 fn int_method_call(
@@ -203,7 +210,7 @@ fn instance_method_call(
                     Node::Def(args, body) => Some((args, body)),
                     _ => None,
                 })
-                .find(|(patterns, _)| match_vec(patterns, args, class_env))
+                .find(|(patterns, _)| match_vec(patterns, args, env, class_env))
             {
                 let mut env = env.clone();
                 env.insert(
@@ -258,6 +265,7 @@ fn instance_method_call(
                                 panic!("vector failure")
                             }
                         }
+                        Node::Unquote(_) => (),
                     }
                 }
 
@@ -386,6 +394,7 @@ fn eval_node(
                 panic!("no class found {}", name)
             }
         }
+        Node::Unquote(_) => todo!(),
     }
 }
 

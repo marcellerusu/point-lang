@@ -14,6 +14,7 @@ pub enum Node {
     Operator(String),
     List(Vec<Node>),
     Str(String),
+    Unquote(String),
 }
 
 #[derive(Clone)]
@@ -94,10 +95,18 @@ impl Parser {
             self.parse_id()
         } else if self.scan(|t| t.as_str()) {
             self.parse_str()
+        } else if self.scan(|t| t.as_caret()) {
+            self.parse_caret()
         } else {
             println!("hm {:?}", self.tokens.get(self.idx..));
             panic!("no expr found")
         }
+    }
+
+    fn parse_caret(&mut self) -> Node {
+        self.consume(|t| t.as_caret());
+        let name = self.consume(|t| t.as_id());
+        Node::Unquote(name)
     }
 
     fn parse_str(&mut self) -> Node {

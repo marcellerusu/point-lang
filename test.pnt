@@ -1,6 +1,9 @@
-class A
-  def A{value;} -> value;
+class Sym;
+
+log := Sym[:log;];
+
+class Int
+  def ^log -> self :log;
 end
 
-A{} A["marcelle";].
-  :log;
+1 log;

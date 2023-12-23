@@ -18,6 +18,7 @@ pub enum Token {
     Int(usize),
     Operator(String),
     Str(String),
+    Caret,
 }
 
 impl Token {
@@ -117,6 +118,12 @@ impl Token {
             _ => None,
         }
     }
+    pub fn as_caret(&self) -> Option<()> {
+        match self {
+            Token::Caret => Some(()),
+            _ => None,
+        }
+    }
 }
 
 pub fn tokenize(program_string: String) -> Vec<Token> {
@@ -140,6 +147,9 @@ pub fn tokenize(program_string: String) -> Vec<Token> {
             idx += 1;
         } else if program_string.get(idx..(idx + 1)) == Some(" ") {
             idx += 1;
+        } else if program_string.get(idx..(idx + 1)) == Some("^") {
+            idx += 1;
+            tokens.push(Token::Caret)
         } else if program_string.get(idx..(idx + 2)) == Some(": ") {
             idx += 2;
             tokens.push(Token::Colon)

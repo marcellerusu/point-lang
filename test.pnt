@@ -1,9 +1,5 @@
-class Sym;
-
-log := Sym[:log;];
-
-class Int
-  def ^log -> self :log;
+obj := object
+  def {method;} -> method;
 end
 
-1 log;
+obj {method: "hello";}. :log;

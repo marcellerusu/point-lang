@@ -212,81 +212,67 @@ fn list_method_call(
     }
 }
 
-fn set_env_from_pattern(
+fn set_env_from_record(
+    r_props: &Vec<(String, Node)>,
+    arg: &Object,
+    env: &mut HashMap<String, Object>,
+) {
+    if let Object::Instance(_, o_props) = arg {
+        let hash: HashMap<String, Object> = HashMap::from_iter(o_props.clone());
+        for (name, pattern) in r_props {
+            if let Some(value) = hash.get(name) {
+                set_env_from_pattern(pattern, value, env);
+            }
+        }
+    } else {
+        panic!("wtf");
+    }
+}
+
+fn set_env_from_pattern(pattern: &Node, arg: &Object, env: &mut HashMap<String, Object>) {
+    match pattern {
+        Node::IdLookup(name) => {
+            env.insert(name.to_owned(), arg.to_owned());
+        }
+        Node::Keyword(_) => (),
+        Node::Class(_, _) => panic!(),
+        Node::MethodCall(_, _) => panic!(),
+        Node::RecordConstructor(_, r_props) => set_env_from_record(r_props, arg, env),
+        Node::Int(_) => (),
+        Node::Assign(_, _) => panic!(),
+        Node::Operator(_) => (),
+        Node::List(nodes) => {
+            if let Object::List(objs) = arg {
+                set_env_from_patterns(nodes, objs, env);
+            } else {
+                panic!("!");
+            }
+        }
+        Node::Def(_, _) => todo!(),
+        Node::Str(_) => (),
+        Node::VectorConstructor(_, exprs) => {
+            assert!(exprs.len() == 1);
+            if let [Node::IdLookup(name)] = exprs.as_slice() {
+                env.insert(name.to_owned(), arg.to_owned());
+            } else {
+                panic!("vector failure")
+            }
+        }
+        Node::RecordLiteral(r_props) => set_env_from_record(r_props, arg, env),
+        Node::Unquote(_) => (),
+        Node::ParenExpr(_) => todo!(),
+        Node::Spread(_) => todo!(),
+        Node::Object(_) => todo!(),
+    }
+}
+
+fn set_env_from_patterns(
     pattern: &Vec<Node>,
     args: &Vec<Object>,
     env: &mut HashMap<String, Object>,
 ) {
-    for (pat, arg) in pattern.iter().zip(args) {
-        match pat {
-            Node::IdLookup(name) => {
-                env.insert(name.to_owned(), arg.to_owned());
-            }
-            Node::Keyword(_) => (),
-            Node::Class(_, _) => panic!(),
-            Node::MethodCall(_, _) => panic!(),
-            Node::RecordConstructor(_, properties) => {
-                if let Object::Instance(_, props) = arg {
-                    let keys: HashSet<String> = properties.iter().map(|t| t.0.clone()).collect();
-                    for (name, val) in props {
-                        if keys.contains(name) {
-                            env.insert(name.to_owned(), val.to_owned());
-                        }
-                    }
-                } else {
-                    panic!("wtf");
-                }
-            }
-            Node::Int(_) => (),
-            Node::Assign(_, _) => panic!(),
-            Node::Operator(_) => (),
-            Node::List(nodes) => {
-                if let Object::List(objs) = arg {
-                    for (node, val) in nodes.iter().zip(objs) {
-                        match node {
-                            Node::IdLookup(name) => {
-                                env.insert(name.to_owned(), val.to_owned());
-                            }
-                            _ => (),
-                        }
-                    }
-                } else {
-                    panic!("!");
-                }
-            }
-            Node::Def(_, _) => todo!(),
-            Node::Str(_) => (),
-            Node::VectorConstructor(_, exprs) => {
-                assert!(exprs.len() == 1);
-                if let [Node::IdLookup(name)] = exprs.as_slice() {
-                    env.insert(name.to_owned(), arg.to_owned());
-                } else {
-                    panic!("vector failure")
-                }
-            }
-            Node::Unquote(_) => (),
-            Node::ParenExpr(_) => todo!(),
-            Node::Spread(_) => todo!(),
-            Node::Object(_) => todo!(),
-            Node::RecordLiteral(properties) => {
-                if let Object::Instance(_, props) = arg {
-                    for (name, val) in props {
-                        if let Some((_, node)) = properties.iter().find(|(n, _)| n == name) {
-                            env.insert(name.to_owned(), val.to_owned());
-                            set_env_from_pattern(
-                                &vec![node.to_owned()],
-                                &vec![val.to_owned()],
-                                env,
-                            );
-                        } else {
-                            panic!("wtf")
-                        }
-                    }
-                } else {
-                    panic!("wtf");
-                }
-            }
-        }
+    for (pattern, arg) in pattern.iter().zip(args) {
+        set_env_from_pattern(pattern, arg, env)
     }
 }
 
@@ -341,7 +327,7 @@ fn instance_method_call(
                         panic!("god no")
                     }
                 } else {
-                    set_env_from_pattern(pattern, args, &mut env);
+                    set_env_from_patterns(pattern, args, &mut env);
                 }
                 let result = eval_node(method, &mut env, &mut class_env.clone());
                 result

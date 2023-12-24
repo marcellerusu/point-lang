@@ -376,17 +376,47 @@ fn eval_node(
 ) -> Object {
     match node {
         Node::MethodCall(lhs, args) => {
-            let arg_objects: Vec<Object> = args
-                .iter()
-                .map(|item| eval_node(item, env, class_env))
-                .collect();
+            // handle spread!
+            if let Some(p) = args.iter().position(|n| matches!(n, Node::Spread(_))) {
+                // for now only handle spreading from last element
+                assert!(p == args.len() - 1);
+                let mut arg_objects = vec![];
+                for arg in args.iter().take(args.len() - 1) {
+                    arg_objects.push(eval_node(arg, env, class_env));
+                }
+                if let Some(Node::Spread(node)) = args.last() {
+                    if let Node::IdLookup(name) = node.as_ref() {
+                        if let Object::List(list) = env.get(name).unwrap() {
+                            arg_objects.extend(list.to_owned());
+                            method_call(
+                                &eval_node(lhs.as_ref(), env, class_env),
+                                &arg_objects,
+                                env,
+                                class_env,
+                            )
+                        } else {
+                            panic!(" :( :(")
+                        }
+                    } else {
+                        panic!("NOOOOO")
+                    }
+                } else {
+                    panic!("ah no boy!")
+                }
+            } else {
+                // no spread!
+                let arg_objects: Vec<Object> = args
+                    .iter()
+                    .map(|item| eval_node(item, env, class_env))
+                    .collect();
 
-            method_call(
-                &eval_node(lhs.as_ref(), env, class_env),
-                &arg_objects,
-                env,
-                class_env,
-            )
+                method_call(
+                    &eval_node(lhs.as_ref(), env, class_env),
+                    &arg_objects,
+                    env,
+                    class_env,
+                )
+            }
         }
         Node::Keyword(name) => Object::Keyword(name.to_owned()),
         Node::Class(name, defs) => {

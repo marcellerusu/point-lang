@@ -1,0 +1,17 @@
+-- this doesn't yet work
+
+class Underscore
+  def method ...args ->
+    Underscore[...(self :ops;) {method; args;};];
+  end
+
+  def arg -> self :ops. :reduce
+    object
+      def lhs {method; args;} -> lhs method ...args;
+    end
+    arg;
+end
+
+_ := Underscore[];
+
+_ + 1. 10. :log;

@@ -1,0 +1,28 @@
+-- this doesn't yet work
+
+step := Sym[:Iter_step];
+
+class Iter
+  def ^step ->
+    Iter{value: self: value; idx: self :idx. + 1;};
+end
+class IterResult;
+class IterEnd;
+
+class IRange
+  def :iter -> Iter[
+    object
+      def 0 obj -> IterResult[obj :lhs;];
+      def ^(self :rhs) obj -> IterEnd[obj :rhs;];
+      def idx obj -> IterResult[obj :lhs. + idx;];
+    end
+  ];
+end
+
+class Int
+  def ..= rhs -> IRange{lhs: self; rhs;};
+end
+
+1 ..= 100.
+  :iter.
+  :log;

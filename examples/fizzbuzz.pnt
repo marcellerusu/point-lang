@@ -1,0 +1,9 @@
+-- this depends on Underscore & Iterator
+
+1..=100. :map
+  Classify{fizz: _ % 3; buzz: _ % 5;}
+  object
+    def {fizz: 0; buzz: 0;} -> "fizzbuzz";
+    def {fizz: 0;} -> "fizz";
+    def {buzz: 0;} -> "buzz";
+  end;

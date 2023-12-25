@@ -155,11 +155,14 @@ impl Token {
 }
 
 pub fn tokenize(program_string: String) -> Vec<Token> {
+    if program_string.contains("\t") {
+        panic!("\\t is not allowed")
+    }
     let mut idx = 0;
 
     let mut tokens: Vec<Token> = vec![];
 
-    let end_chars = HashSet::from([".", ";", " ", "}", ")"]);
+    let end_chars = HashSet::from([".", ";", " ", "}", ")", "\n"]);
 
     let one_char_operators = HashSet::from(["+", "-", "*", "/", "%", ">", "<", "=", "|", "&"]);
     let two_char_operators = HashSet::from(["**", ">=", "<=", "==", "&&", "||", ".."]);

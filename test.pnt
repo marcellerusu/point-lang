@@ -1,6 +1,5 @@
-obj := object
-  def lhs {method; args;} -> lhs method ...args;
-end
+def :invoke lhs {method; args;} ->
+  lhs method ...args;
 
-obj 10 {method: +; args: [1;];}.
-  :log;
+self :invoke
+  10 {method: +; args: [1;];}. :log;

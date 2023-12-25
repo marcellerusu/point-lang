@@ -88,6 +88,16 @@ impl Parser {
         }
     }
 
+    fn is_vector_constructor(&self) -> bool {
+        if let Some([Token::Id(_, i), Token::OpenSqBrace(j)]) =
+            self.tokens.get(self.idx..(self.idx + 2))
+        {
+            j == &(i + 1)
+        } else {
+            false
+        }
+    }
+
     fn parse_single_expr(&mut self) -> Node {
         if self.scan(|t| t.as_keyword()) {
             self.parse_keyword()
@@ -101,9 +111,7 @@ impl Parser {
             self.parse_operator()
         } else if self.scan(|t| t.as_open_sq_brace()) {
             self.parse_list_literal()
-        } else if let Some([Token::Id(_, _), Token::OpenSqBrace(_)]) =
-            self.tokens.get(self.idx..(self.idx + 2))
-        {
+        } else if self.is_vector_constructor() {
             self.parse_vector_constructor()
         } else if self.scan(|t| t.as_open_brace()) {
             self.parse_record_literal()

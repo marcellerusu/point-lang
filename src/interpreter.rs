@@ -198,6 +198,16 @@ fn str_method_call(lhs: &String, args: &Vec<Object>) -> Object {
     }
 }
 
+fn kw_method_call(lhs: &String, args: &Vec<Object>) -> Object {
+    match args.as_slice() {
+        [Object::Keyword(name)] if name == "log" => {
+            println!(":{}", lhs);
+            Object::Nil
+        }
+        _ => todo!("unknown str method, {:?}", args),
+    }
+}
+
 fn list_method_call(
     items: &Vec<Object>,
     args: &Vec<Object>,
@@ -351,6 +361,7 @@ fn method_call(
         }
         Object::List(items) => list_method_call(items, args, class_env),
         Object::Str(val) => str_method_call(val, args),
+        Object::Keyword(kw) => kw_method_call(kw, args),
         _ => panic!("unknown method {:?}", lhs),
     }
 }

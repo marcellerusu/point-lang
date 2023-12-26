@@ -39,6 +39,14 @@ impl Parser {
     }
 
     fn scan<T>(&mut self, get: fn(&Token) -> Option<T>) -> bool {
+        if self
+            .tokens
+            .get(self.idx)
+            .and_then(|t| t.as_comment())
+            .is_some()
+        {
+            self.idx += 1;
+        }
         self.tokens.get(self.idx).and_then(get).is_some()
     }
 

@@ -23,6 +23,7 @@ pub enum Token {
     Caret(usize),
     Spread(usize),
     Object(usize),
+    Comment(String),
 }
 
 impl Token {
@@ -98,6 +99,13 @@ impl Token {
             _ => None,
         }
     }
+    pub fn as_comment(&self) -> Option<String> {
+        match self {
+            Token::Comment(str) => Some(str.to_owned()),
+            _ => None,
+        }
+    }
+
     pub fn as_colon(&self) -> Option<()> {
         match self {
             Token::Colon(_) => Some(()),
@@ -171,9 +179,12 @@ pub fn tokenize(program_string: String) -> Vec<Token> {
     while idx < program_string.len() {
         if program_string.get(idx..(idx + 2)) == Some("--") {
             idx += 2;
+            let mut comment = "".to_string();
             while program_string.get(idx..(idx + 1)) != Some("\n") {
+                comment += program_string.get(idx..=idx).unwrap();
                 idx += 1;
             }
+            tokens.push(Token::Comment(comment))
         } else if program_string.get(idx..(idx + 1)) == Some("\n") {
             idx += 1;
         } else if program_string.get(idx..(idx + 1)) == Some(" ") {

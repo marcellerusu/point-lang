@@ -14,7 +14,7 @@ pub enum Node {
     Operator(String),
     List(Vec<Node>),
     Str(String),
-    Unquote(String),
+    Unquote(Box<Node>),
     ParenExpr(Box<Node>),
     Spread(Box<Node>),
     Object(Vec<Node>),
@@ -176,8 +176,8 @@ impl Parser {
 
     fn parse_caret(&mut self) -> Node {
         self.consume(|t| t.as_caret());
-        let name = self.consume(|t| t.as_id());
-        Node::Unquote(name)
+        let expr = self.parse_single_expr();
+        Node::Unquote(Box::new(expr))
     }
 
     fn parse_str(&mut self) -> Node {

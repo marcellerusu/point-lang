@@ -68,8 +68,8 @@ pub struct Class {
 fn match_pattern(
     a: &Node,
     b: &Object,
-    env: &HashMap<String, Object>,
-    class_env: &HashMap<Uuid, Class>,
+    env: &mut HashMap<String, Object>,
+    class_env: &mut HashMap<Uuid, Class>,
 ) -> bool {
     match (a, b) {
         (Node::Keyword(a), Object::Keyword(b)) => a == b,
@@ -114,7 +114,7 @@ fn match_pattern(
             values.len() == 1 && name == "Int"
         }
         (Node::VectorConstructor(_, _), _) => false,
-        (Node::Unquote(name), rhs) => env.get(name).map(|lhs| lhs == rhs).unwrap_or(false),
+        (Node::Unquote(node), rhs) => eval_node(node, env, class_env) == *rhs,
         (Node::ParenExpr(node), rhs) => match_pattern(node, rhs, env, class_env),
         (Node::Spread(_), _) => todo!("AH"),
         (Node::Object(_), _) => todo!(),
@@ -140,8 +140,8 @@ fn match_pattern(
 fn match_vec(
     method_args: &Vec<Node>,
     args: &Vec<Object>,
-    env: &HashMap<String, Object>,
-    class_env: &HashMap<Uuid, Class>,
+    env: &mut HashMap<String, Object>,
+    class_env: &mut HashMap<Uuid, Class>,
 ) -> bool {
     if method_args.len() == 1 && matches!(method_args.first().unwrap(), Node::Spread(_)) {
         if let Node::Spread(node) = method_args.first().unwrap() {
@@ -162,8 +162,8 @@ fn match_vec(
 fn int_method_call(
     lhs: usize,
     args: &Vec<Object>,
-    env: &HashMap<String, Object>,
-    class_env: &HashMap<Uuid, Class>,
+    env: &mut HashMap<String, Object>,
+    class_env: &mut HashMap<Uuid, Class>,
 ) -> Object {
     match args.as_slice() {
         [Object::Keyword(name)] if name == "log" => {
@@ -178,7 +178,7 @@ fn int_method_call(
                     class_id,
                     &vec![("value".to_owned(), Object::Int(lhs))],
                     args,
-                    env,
+                    &mut env.clone(),
                     class_env,
                 )
             } else {
@@ -290,8 +290,8 @@ fn instance_method_call(
     class_id: &Uuid,
     properties: &Vec<(String, Object)>,
     args: &Vec<Object>,
-    env: &HashMap<String, Object>,
-    class_env: &HashMap<Uuid, Class>,
+    env: &mut HashMap<String, Object>,
+    class_env: &mut HashMap<Uuid, Class>,
 ) -> Object {
     let keys: HashSet<&String> = properties.iter().map(|(name, _)| name).collect();
     match args.as_slice() {
@@ -318,7 +318,8 @@ fn instance_method_call(
                     Node::Def(args, body) => Some((args, body)),
                     _ => None,
                 })
-                .find(|(patterns, _)| match_vec(patterns, args, env, class_env))
+                // TODO: shouldn't need to clone here
+                .find(|(patterns, _)| match_vec(patterns, args, env, &mut class_env.clone()))
             {
                 let mut env = env.clone();
                 env.insert(
@@ -351,8 +352,8 @@ fn instance_method_call(
 fn method_call(
     lhs: &Object,
     args: &Vec<Object>,
-    env: &HashMap<String, Object>,
-    class_env: &HashMap<Uuid, Class>,
+    env: &mut HashMap<String, Object>,
+    class_env: &mut HashMap<Uuid, Class>,
 ) -> Object {
     match lhs {
         Object::Int(val) => int_method_call(*val, args, env, class_env),

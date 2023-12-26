@@ -1,5 +1,4 @@
-def :invoke lhs {method; args;} ->
-  lhs method ...args;
+a := 10;
+def ^(a + 1;) -> a;
 
-self :invoke
-  10 {method: +; args: [1;];}. :log;
+self 11. :log;

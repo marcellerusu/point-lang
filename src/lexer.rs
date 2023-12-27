@@ -178,7 +178,7 @@ pub fn tokenize(program_string: String) -> Vec<Token> {
     let three_char_operators = HashSet::from(["..="]);
 
     while idx < program_string.len() {
-        if program_string.get(idx..(idx + 2)) == Some("--") {
+        if program_string.get(idx..=idx + 1) == Some("--") {
             let original_idx = idx;
             idx += 2;
             let comment = program_string
@@ -206,52 +206,52 @@ pub fn tokenize(program_string: String) -> Vec<Token> {
             let original_idx = idx;
             idx += 1;
             tokens.push(Token::CloseParen(original_idx))
-        } else if program_string.get(idx..(idx + 2)) == Some(": ") {
+        } else if program_string.get(idx..=idx + 1) == Some(": ") {
             let original_idx = idx;
             idx += 2;
             tokens.push(Token::Colon(original_idx))
-        } else if program_string.get(idx..(idx + 2)) == Some(":=") {
+        } else if program_string.get(idx..=idx + 1) == Some(":=") {
             let original_idx = idx;
             idx += 2;
             tokens.push(Token::ColonEq(original_idx))
-        } else if program_string.get(idx..(idx + 2)) == Some("->") {
+        } else if program_string.get(idx..=idx + 1) == Some("->") {
             let original_idx = idx;
             idx += 2;
             tokens.push(Token::Arrow(original_idx))
-        } else if program_string.get(idx..(idx + 3)) == Some("...") {
+        } else if program_string.get(idx..=idx + 2) == Some("...") {
             let original_idx = idx;
             idx += 3;
             tokens.push(Token::Spread(original_idx))
-        } else if program_string.get(idx..(idx + 3)) == Some("end") {
+        } else if program_string.get(idx..=idx + 2) == Some("end") {
             let original_idx = idx;
             idx += 3;
             tokens.push(Token::EndToken(original_idx))
-        } else if program_string.get(idx..(idx + 6)) == Some("object") {
+        } else if program_string.get(idx..=idx + 5) == Some("object") {
             let original_idx = idx;
             idx += 6;
             tokens.push(Token::Object(original_idx))
         } else if let Some(op) = program_string
-            .get(idx..(idx + 1))
+            .get(idx..=idx)
             .filter(|item| one_char_operators.get(item).is_some())
         {
             let original_idx = idx;
             idx += 1;
             tokens.push(Token::Operator(op.to_string(), original_idx))
         } else if let Some(op) = program_string
-            .get(idx..(idx + 2))
+            .get(idx..=idx + 1)
             .filter(|item| two_char_operators.get(item).is_some())
         {
             let original_idx = idx;
             idx += 2;
             tokens.push(Token::Operator(op.to_string(), original_idx))
         } else if let Some(op) = program_string
-            .get(idx..(idx + 3))
+            .get(idx..=idx + 2)
             .filter(|item| three_char_operators.get(item).is_some())
         {
             let original_idx = idx;
             idx += 3;
             tokens.push(Token::Operator(op.to_string(), original_idx))
-        } else if program_string.get(idx..(idx + 1)) == Some(":") {
+        } else if program_string.get(idx..=idx) == Some(":") {
             let original_idx = idx;
             idx += 1;
             let name = program_string
@@ -261,39 +261,39 @@ pub fn tokenize(program_string: String) -> Vec<Token> {
                 .collect::<String>();
             idx += name.len();
             tokens.push(Token::Keyword(name, original_idx));
-        } else if program_string.get(idx..(idx + 1)) == Some(".") {
+        } else if program_string.get(idx..=idx) == Some(".") {
             let original_idx = idx;
             idx += 1;
             tokens.push(Token::Dot(original_idx));
-        } else if program_string.get(idx..(idx + 1)) == Some(";") {
+        } else if program_string.get(idx..=idx) == Some(";") {
             let original_idx = idx;
             idx += 1;
             tokens.push(Token::EndToken(original_idx));
-        } else if program_string.get(idx..(idx + 1)) == Some("{") {
+        } else if program_string.get(idx..=idx) == Some("{") {
             let original_idx = idx;
             idx += 1;
             tokens.push(Token::OpenBrace(original_idx));
-        } else if program_string.get(idx..(idx + 1)) == Some("}") {
+        } else if program_string.get(idx..=idx) == Some("}") {
             let original_idx = idx;
             idx += 1;
             tokens.push(Token::CloseBrace(original_idx));
-        } else if program_string.get(idx..(idx + 1)) == Some("[") {
+        } else if program_string.get(idx..=idx) == Some("[") {
             let original_idx = idx;
             idx += 1;
             tokens.push(Token::OpenSqBrace(original_idx));
-        } else if program_string.get(idx..(idx + 1)) == Some("]") {
+        } else if program_string.get(idx..=idx) == Some("]") {
             let original_idx = idx;
             idx += 1;
             tokens.push(Token::CloseSqBrace(original_idx));
-        } else if program_string.get(idx..(idx + 5)) == Some("class") {
+        } else if program_string.get(idx..=idx + 4) == Some("class") {
             let original_idx = idx;
             idx += 5;
             tokens.push(Token::Class(original_idx));
-        } else if program_string.get(idx..(idx + 3)) == Some("def") {
+        } else if program_string.get(idx..=idx + 2) == Some("def") {
             let original_idx = idx;
             idx += 3;
             tokens.push(Token::Def(original_idx));
-        } else if program_string.get(idx..(idx + 1)) == Some("\"") {
+        } else if program_string.get(idx..=idx) == Some("\"") {
             let original_idx = idx;
             idx += 1;
             let str: String = program_string

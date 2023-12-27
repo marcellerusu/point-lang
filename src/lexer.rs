@@ -163,7 +163,7 @@ impl Token {
 }
 
 pub fn tokenize(program_string: String) -> Vec<Token> {
-    if program_string.contains("\t") {
+    if program_string.contains('\t') {
         panic!("\\t is not allowed")
     }
     let mut idx = 0;
@@ -185,17 +185,19 @@ pub fn tokenize(program_string: String) -> Vec<Token> {
                 idx += 1;
             }
             tokens.push(Token::Comment(comment))
-        } else if program_string.get(idx..(idx + 1)) == Some("\n") {
+        } else if program_string
+            .get(idx..=idx)
+            .filter(|item| ["\n", " "].contains(item))
+            .is_some()
+        {
             idx += 1;
-        } else if program_string.get(idx..(idx + 1)) == Some(" ") {
-            idx += 1;
-        } else if program_string.get(idx..(idx + 1)) == Some("^") {
+        } else if program_string.get(idx..=idx) == Some("^") {
             idx += 1;
             tokens.push(Token::Caret(idx))
-        } else if program_string.get(idx..(idx + 1)) == Some("(") {
+        } else if program_string.get(idx..=idx) == Some("(") {
             idx += 1;
             tokens.push(Token::OpenParen(idx))
-        } else if program_string.get(idx..(idx + 1)) == Some(")") {
+        } else if program_string.get(idx..=idx) == Some(")") {
             idx += 1;
             tokens.push(Token::CloseParen(idx))
         } else if program_string.get(idx..(idx + 2)) == Some(": ") {
@@ -284,8 +286,7 @@ pub fn tokenize(program_string: String) -> Vec<Token> {
             tokens.push(Token::Str(str, idx));
         } else if program_string
             .chars()
-            .skip(idx)
-            .next()
+            .nth(idx)
             .map(|x| x.is_numeric())
             .unwrap_or(false)
         {
@@ -299,8 +300,7 @@ pub fn tokenize(program_string: String) -> Vec<Token> {
             tokens.push(Token::Int(val.parse().unwrap(), idx));
         } else if program_string
             .chars()
-            .skip(idx)
-            .next()
+            .nth(idx)
             .map(|x| x.is_alphabetic())
             .unwrap_or(false)
         {

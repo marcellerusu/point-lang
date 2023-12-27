@@ -10,11 +10,7 @@ fn main() {
 
     let tokens = lexer::tokenize(test_program);
     // println!("Tokens! {:?}", tokens);
-    let ast = parser::Parser {
-        tokens: tokens,
-        idx: 0,
-    }
-    .parse();
+    let ast = parser::Parser { tokens, idx: 0 }.parse();
 
     // println!("AST! {:?}", ast);
 

@@ -21,7 +21,7 @@ impl Object {
     pub fn to_s(&self, class_env: &HashMap<Uuid, Class>) -> String {
         match self {
             Object::Instance(class_id, props) => {
-                let class = class_env.get(&class_id).unwrap();
+                let class = class_env.get(class_id).unwrap();
                 if ["Int", "String"].contains(&class.name.as_str()) {
                     props.get(0).unwrap().1.to_s(class_env)
                 } else {
@@ -39,11 +39,11 @@ impl Object {
                     format!("{}{{{}}}", name, props)
                 }
             }
-            Object::Nil => format!("nil"),
+            Object::Nil => "nil".to_string(),
             Object::Keyword(name) => format!(":{}", name),
             Object::Str(name) => format!("\"{}\"", name),
             Object::Int(val) => format!("{}", val),
-            Object::Class(uuid) => format!("[{}]", class_env.get(&uuid).unwrap().name),
+            Object::Class(uuid) => format!("[{}]", class_env.get(uuid).unwrap().name),
             Object::Operator(op) => format!("`{}`", op),
             Object::List(items) => {
                 format!(
@@ -208,12 +208,8 @@ fn kw_method_call(lhs: &String, args: &Vec<Object>) -> Object {
     }
 }
 
-fn list_method_call(
-    items: &Vec<Object>,
-    args: &Vec<Object>,
-    class_env: &HashMap<Uuid, Class>,
-) -> Object {
-    match args.as_slice() {
+fn list_method_call(items: &[Object], args: &[Object], class_env: &HashMap<Uuid, Class>) -> Object {
+    match args {
         [Object::Keyword(name)] if name == "log" => {
             println!("{}", Object::List(items.to_vec()).to_s(class_env));
             Object::Nil
@@ -276,11 +272,7 @@ fn set_env_from_pattern(pattern: &Node, arg: &Object, env: &mut HashMap<String, 
     }
 }
 
-fn set_env_from_patterns(
-    pattern: &Vec<Node>,
-    args: &Vec<Object>,
-    env: &mut HashMap<String, Object>,
-) {
+fn set_env_from_patterns(pattern: &[Node], args: &[Object], env: &mut HashMap<String, Object>) {
     for (pattern, arg) in pattern.iter().zip(args) {
         set_env_from_pattern(pattern, arg, env)
     }
@@ -340,8 +332,7 @@ fn instance_method_call(
                 } else {
                     set_env_from_patterns(pattern, args, &mut env);
                 }
-                let result = eval_node(method, &mut env, &mut class_env.clone());
-                result
+                eval_node(method, &mut env, &mut class_env.clone())
             } else {
                 panic!("no method found :(")
             }

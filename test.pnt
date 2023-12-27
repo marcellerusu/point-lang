@@ -1,7 +1,5 @@
 a := 10;
 
-def ^(a + 1;) -> a;
+def ^(a + 2;) -> a;
 
--- def ^(_ + 10;) -> a;
-
-self 11. :log;
+self 12. :log;

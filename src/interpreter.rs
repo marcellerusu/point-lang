@@ -272,8 +272,8 @@ fn set_env_from_pattern(pattern: &Node, arg: &Object, env: &mut HashMap<String, 
     }
 }
 
-fn set_env_from_patterns(pattern: &[Node], args: &[Object], env: &mut HashMap<String, Object>) {
-    for (pattern, arg) in pattern.iter().zip(args) {
+fn set_env_from_patterns(patterns: &[Node], args: &[Object], env: &mut HashMap<String, Object>) {
+    for (pattern, arg) in patterns.iter().zip(args) {
         set_env_from_pattern(pattern, arg, env)
     }
 }

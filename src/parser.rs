@@ -87,20 +87,20 @@ impl Parser {
     }
 
     fn is_record_constructor(&self) -> bool {
-        if let Some([Token::Id(_, i), Token::OpenBrace(j)]) =
+        if let Some([Token::Id(name, i), Token::OpenBrace(j)]) =
             self.tokens.get(self.idx..(self.idx + 2))
         {
-            j == &(i + 1)
+            name.len() + i == *j
         } else {
             false
         }
     }
 
     fn is_vector_constructor(&self) -> bool {
-        if let Some([Token::Id(_, i), Token::OpenSqBrace(j)]) =
+        if let Some([Token::Id(name, i), Token::OpenSqBrace(j)]) =
             self.tokens.get(self.idx..(self.idx + 2))
         {
-            *j == i + 1
+            name.len() + i == *j
         } else {
             false
         }

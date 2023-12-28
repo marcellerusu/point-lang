@@ -12,7 +12,7 @@ fn main() {
 
     let ast = parser::Parser { tokens, idx: 0 }.parse();
 
-    // // println!("AST! {:?}", ast);
+    // println!("AST! {:?}", ast);
 
     // println!("{:?}", interpret(ast));
     interpret(ast);

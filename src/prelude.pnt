@@ -1,0 +1,5 @@
+class TrueClass;
+class FalseClass;
+
+true := TrueClass{};
+false := FalseClass{};

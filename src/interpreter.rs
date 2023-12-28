@@ -227,6 +227,26 @@ fn list_method_call(
 
             Object::List(new_items)
         }
+        [Object::Keyword(name), obj] if name == "filter" => {
+            if let Some(Object::Class(true_class_id)) = env.get("TrueClass") {
+                let true_class_id = true_class_id.clone();
+                let new_items: Vec<Object> = items
+                    .iter()
+                    .filter(|item| {
+                        let result = method_call(obj, &vec![(*item).to_owned()], env, class_env);
+                        match result {
+                            Object::Instance(class_id, _) => class_id == true_class_id,
+                            _ => false,
+                        }
+                    })
+                    .map(|item| item.clone())
+                    .collect();
+
+                Object::List(new_items)
+            } else {
+                panic!("ah")
+            }
+        }
         _ => todo!("unknown list method, {:?}", args),
     }
 }

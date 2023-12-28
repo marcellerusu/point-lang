@@ -100,14 +100,26 @@ impl Parser {
         if let Some([Token::Id(_, i), Token::OpenSqBrace(j)]) =
             self.tokens.get(self.idx..(self.idx + 2))
         {
-            j == &(i + 1)
+            *j == i + 1
+        } else {
+            false
+        }
+    }
+
+    fn is_direct_kw_lookup(&self) -> bool {
+        if let Some([Token::Id(name, i), Token::Keyword(_, j)]) =
+            self.tokens.get(self.idx..=self.idx + 1)
+        {
+            name.len() + i == *j
         } else {
             false
         }
     }
 
     fn parse_single_expr(&mut self) -> Node {
-        if self.scan(|t| t.as_keyword()) {
+        if self.is_direct_kw_lookup() {
+            self.parse_direct_kw_lookup()
+        } else if self.scan(|t| t.as_keyword()) {
             self.parse_keyword()
         } else if self.scan(|t| t.as_class()) {
             self.parse_class()
@@ -139,6 +151,12 @@ impl Parser {
             println!("hm {:?}", self.tokens.get(self.idx..));
             panic!("no expr found")
         }
+    }
+
+    fn parse_direct_kw_lookup(&mut self) -> Node {
+        let name = self.consume(|t| t.as_id());
+        let kw = self.consume(|t| t.as_keyword());
+        Node::MethodCall(Box::new(Node::IdLookup(name)), vec![Node::Keyword(kw)])
     }
 
     fn parse_record_literal(&mut self) -> Node {

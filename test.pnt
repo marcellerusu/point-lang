@@ -1,2 +1,6 @@
-false || true.
+[1; 2; 3;] :any?
+  object
+    def 4 -> true;
+    def _ -> false;
+  end.
   :log;

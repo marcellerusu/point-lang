@@ -247,6 +247,25 @@ fn list_method_call(
                 panic!("ah")
             }
         }
+        [Object::Keyword(name), obj] if name == "any?" => {
+            if let Some(Object::Class(true_class_id)) = env.get("TrueClass") {
+                let true_class_id = true_class_id.clone();
+                let result = items.iter().any(|item| {
+                    let result = method_call(obj, &vec![(*item).to_owned()], env, class_env);
+                    match result {
+                        Object::Instance(class_id, _) => class_id == true_class_id,
+                        _ => false,
+                    }
+                });
+                if result {
+                    eval_node(&Node::IdLookup("true".to_string()), env, class_env)
+                } else {
+                    eval_node(&Node::IdLookup("false".to_string()), env, class_env)
+                }
+            } else {
+                panic!("ah")
+            }
+        }
         _ => todo!("unknown list method, {:?}", args),
     }
 }

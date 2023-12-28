@@ -1,7 +1,6 @@
-class Point
-  def + Point{x; y;} ->
-    Point{x: self:x + x; y: self:y + y;};
-end
+x := [1; 2;] :map
+  object
+    def x -> x + 1;
+  end
 
-Point{x: 1; y: 2;} + Point{x: 2; y: 3;}.
-  :log;
+x :log;  

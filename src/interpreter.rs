@@ -208,11 +208,24 @@ fn kw_method_call(lhs: &String, args: &Vec<Object>) -> Object {
     }
 }
 
-fn list_method_call(items: &[Object], args: &[Object], class_env: &HashMap<Uuid, Class>) -> Object {
+fn list_method_call(
+    items: &[Object],
+    args: &[Object],
+    env: &mut HashMap<String, Object>,
+    class_env: &mut HashMap<Uuid, Class>,
+) -> Object {
     match args {
         [Object::Keyword(name)] if name == "log" => {
             println!("{}", Object::List(items.to_vec()).to_s(class_env));
             Object::Nil
+        }
+        [Object::Keyword(name), obj] if name == "map" => {
+            let new_items: Vec<Object> = items
+                .iter()
+                .map(|item| method_call(obj, &vec![item.to_owned()], env, class_env))
+                .collect();
+
+            Object::List(new_items)
         }
         _ => todo!("unknown list method, {:?}", args),
     }
@@ -351,7 +364,7 @@ fn method_call(
         Object::Instance(class_id, properties) => {
             instance_method_call(class_id, properties, args, env, class_env)
         }
-        Object::List(items) => list_method_call(items, args, class_env),
+        Object::List(items) => list_method_call(items, args, env, class_env),
         Object::Str(val) => str_method_call(val, args),
         Object::Keyword(kw) => kw_method_call(kw, args),
         _ => panic!("unknown method {:?}", lhs),

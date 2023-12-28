@@ -1,5 +1,13 @@
-class TrueClass;
-class FalseClass;
+class TrueClass
+  def && ^false -> false;
+  def && ^true -> true;
+  def || _ -> true;
+end
+class FalseClass
+  def && _ -> false;
+  def || ^true -> true;
+  def || ^false -> false;
+end
 
 true := TrueClass{};
 false := FalseClass{};

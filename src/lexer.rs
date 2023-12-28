@@ -318,7 +318,10 @@ pub fn tokenize(program_string: String) -> Vec<Token> {
             tokens.push(Token::Int(val.parse().unwrap(), original_idx));
         } else if program_string
             .get(idx..=idx)
-            .map(|x| x.chars().next().unwrap().is_alphabetic())
+            .map(|x| {
+                let char = x.chars().next().unwrap();
+                char.is_alphabetic() || char == '_'
+            })
             .unwrap_or(false)
         {
             let original_idx = idx;

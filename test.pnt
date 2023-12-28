@@ -1,6 +1,2 @@
-[1; 2; 3; 2;] :filter
-  object
-    def 2 -> true;
-    def x -> false;
-  end.
+false || true.
   :log;

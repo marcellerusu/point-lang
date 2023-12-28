@@ -185,6 +185,7 @@ impl Parser {
         while !self.scan(|t| t.as_end_token()) {
             methods.push(self.parse_expr());
         }
+        self.consume(|t| t.as_end_token());
         Node::Object(methods)
     }
 

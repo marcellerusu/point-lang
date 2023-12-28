@@ -1,6 +1,6 @@
-x := [1; 2;] :map
-  object
-    def x -> x + 1;
-  end
+add_one := object
+  def x -> x;
+end;
 
-x :log;  
+x := [1; 2;] :map add_one.
+  :log;

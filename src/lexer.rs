@@ -325,7 +325,7 @@ pub fn tokenize(program_string: String) -> Vec<Token> {
             let name: String = program_string
                 .chars()
                 .skip(idx)
-                .take_while(|x| x.is_alphanumeric())
+                .take_while(|x| x.is_alphanumeric() || *x == '_')
                 .collect();
             idx += name.len();
             tokens.push(Token::Id(name, original_idx));

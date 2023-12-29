@@ -69,38 +69,75 @@ one := 1;
 ```
 class Point; -- definition
 
-Point{x: 1, y: 1}; -- instance
+Point{x: 1; y: 1;}; -- instance
 ```
 
 ```
 class Point
 
   -- `def` defines a message handler, followed by argument patterns.
-  def + Point{x, y} ->
-    Point{x: self :x. + x, y: self :y. + y};
+  def + Point{x; y;} ->
+    Point{x: self :x. + x; y: self :y. + y;};
 
 end
 
-Point{x: 1; y: 1;} + Point{x: -1; y: 1;}.
-  :log; -- prints "Point{ x: 0; y: 2; }"
+Point{x: 1; y: 1;} + Point{x: 2; y: 1;}.
+  :log; -- prints "Point{ x: 3; y: 2; }"
 ```
 
-# FizzBuzz
+## Map/Filter & Object Literals
 
-Let's start with a sane simple question, fizz buzz. If a number is divisible by 3 print fizz, 5 print buzz, 15 print fizzbuzz. How would we go about this in pnt?
+We support map & filter, but we don't have traditional lambda's, the only notion that can respond to messages is an object so we can create an object literal.
 
 ```
-1..=100. :map
-  Classify{fizz: _ % 3; buzz: _ % 5;}
+[1; 2; 3;] :map
   object
-    def {fizz: 0; buzz: 0;} -> "fizzbuzz";
-    def {fizz: 0;} -> "fizz";
-    def {buzz: 0;} -> "buzz";
-  end;
+    def x -> x + 1;
+  end; -- [2; 3; 4;]
+
+-- let's define a more interesting mapping
+
+[1; 2; 3;] :map
+  object
+    def 1 -> 2;
+    def 2 -> 0;
+    def 3 -> 10;
+  end; -- [2; 0; 10;]
+
+-- similarly we have filter
+
+[1; 2; 3;] :filter
+  object
+    def 2 -> true;
+    def _ -> false;
+  end; -- [2;]
 ```
 
-# FAQ
+## Booleans
 
-Q: I tried to run that fizzbuzz example, it didn't compile..
+Booleans are not a language construct, they are defined in the language.
 
-A: Yes, I lied. One day it might work that way, but right now it's fairly limited.
+Let's see the definition:
+
+```
+class TrueClass
+  def && ^false -> false;
+  def && ^true -> true;
+  def || _ -> true;
+end
+class FalseClass
+  def && _ -> false;
+  def || ^true -> true;
+  def || ^false -> false;
+end
+
+true := TrueClass{};
+false := FalseClass{};
+
+-- let's use them
+
+true && false; -- false
+true || false; -- true
+false || true; -- true
+false && true; -- false
+```

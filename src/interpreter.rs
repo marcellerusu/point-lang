@@ -122,16 +122,7 @@ fn match_pattern(
 
             let lhs = values.first().unwrap();
             let (name, val) = props.first().unwrap();
-            if name != "value" {
-                return false;
-            }
-            if let Some(other_val) = local_env.get(&"value".to_string()) {
-                if val != other_val {
-                    return false;
-                }
-            }
-
-            match_pattern(lhs, val, env, class_env, local_env)
+            name == "value" && match_pattern(lhs, val, env, class_env, local_env)
         }
         (Node::VectorConstructor(name, values), Object::Keyword(_)) => {
             values.len() == 1 && name == "Keyword"

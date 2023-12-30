@@ -70,6 +70,7 @@ fn match_pattern(
     b: &Object,
     env: &mut HashMap<String, Object>,
     class_env: &mut HashMap<Uuid, Class>,
+    local_env: &mut HashMap<String, Object>,
 ) -> bool {
     match (a, b) {
         (Node::Keyword(a), Object::Keyword(b)) => a == b,
@@ -77,19 +78,38 @@ fn match_pattern(
         (Node::Class(_, _), _) => todo!("class eq"),
         (Node::MethodCall(_, _), _) => todo!("not sure"),
         (Node::RecordConstructor(a, r_props), Object::Instance(id, props)) => {
-            let keys: HashSet<String> = r_props.iter().map(|t| t.0.clone()).collect();
-            class_env.get(id).map(|c| &c.name == a).unwrap_or(false)
-                && props.iter().all(|(k, _)| keys.contains(k))
+            if !class_env.get(id).map(|c| &c.name == a).unwrap_or(false) {
+                return false;
+            }
+            let obj_map: HashMap<String, Object> = props.iter().map(|t| t.clone()).collect();
+            for (key, node) in r_props {
+                match obj_map.get(key) {
+                    Some(val) => {
+                        if !match_pattern(node, val, env, class_env, local_env) {
+                            return false;
+                        }
+                    }
+                    _ => return false,
+                }
+            }
+            true
         }
         (Node::RecordConstructor(_, _), _) => false,
         (Node::Int(a), Object::Int(b)) => a == b,
         (Node::Int(_), _) => false,
         (Node::IdLookup(name), _) if name == "self" => panic!("self is not a valid pattern"),
-        (Node::IdLookup(_), _) => true,
+        (Node::IdLookup(name), obj) => {
+            if let Some(val) = local_env.get(name) {
+                val == obj
+            } else {
+                local_env.insert(name.to_string(), obj.clone());
+                true
+            }
+        }
         (Node::Assign(_, _), _) => panic!("NOT SURE ABOUT THIS"),
         (Node::Operator(a), Object::Operator(b)) => a == b,
         (Node::Operator(_), _) => false,
-        (Node::List(a), Object::List(b)) => match_vec(a, b, env, class_env),
+        (Node::List(a), Object::List(b)) => match_vec(a, b, env, class_env, local_env),
         (Node::List(_), _) => false,
         (Node::Def(_, _), _) => todo!(),
         (Node::Str(a), Object::Str(b)) => a == b,
@@ -102,7 +122,16 @@ fn match_pattern(
 
             let lhs = values.first().unwrap();
             let (name, val) = props.first().unwrap();
-            name == "value" && match_pattern(lhs, val, env, class_env)
+            if name != "value" {
+                return false;
+            }
+            if let Some(other_val) = local_env.get(&"value".to_string()) {
+                if val != other_val {
+                    return false;
+                }
+            }
+
+            match_pattern(lhs, val, env, class_env, local_env)
         }
         (Node::VectorConstructor(name, values), Object::Keyword(_)) => {
             values.len() == 1 && name == "Keyword"
@@ -115,7 +144,7 @@ fn match_pattern(
         }
         (Node::VectorConstructor(_, _), _) => false,
         (Node::Unquote(node), rhs) => eval_node(node, env, class_env) == *rhs,
-        (Node::ParenExpr(node), rhs) => match_pattern(node, rhs, env, class_env),
+        (Node::ParenExpr(node), rhs) => match_pattern(node, rhs, env, class_env, local_env),
         (Node::Spread(_), _) => todo!("AH"),
         (Node::Object(_), _) => todo!(),
         (Node::RecordLiteral(lhs_props), Object::Instance(_, rhs_props)) => {
@@ -123,7 +152,9 @@ fn match_pattern(
                 return false;
             }
             for ((lhs_name, lhs_expr), (rhs_name, rhs_expr)) in lhs_props.iter().zip(rhs_props) {
-                if lhs_name != rhs_name || !match_pattern(lhs_expr, rhs_expr, env, class_env) {
+                if lhs_name != rhs_name
+                    || !match_pattern(lhs_expr, rhs_expr, env, class_env, local_env)
+                {
                     return false;
                 }
             }
@@ -137,11 +168,21 @@ fn match_pattern(
     }
 }
 
+fn match_arg_list(
+    method_args: &Vec<Node>,
+    args: &Vec<Object>,
+    env: &mut HashMap<String, Object>,
+    class_env: &mut HashMap<Uuid, Class>,
+) -> bool {
+    match_vec(method_args, args, env, class_env, &mut HashMap::new())
+}
+
 fn match_vec(
     method_args: &Vec<Node>,
     args: &Vec<Object>,
     env: &mut HashMap<String, Object>,
     class_env: &mut HashMap<Uuid, Class>,
+    local_env: &mut HashMap<String, Object>,
 ) -> bool {
     if method_args.len() == 1 && matches!(method_args.first().unwrap(), Node::Spread(_)) {
         if let Node::Spread(node) = method_args.first().unwrap() {
@@ -155,7 +196,7 @@ fn match_vec(
             && method_args
                 .iter()
                 .zip(args)
-                .all(|(a, b)| match_pattern(a, b, env, class_env))
+                .all(|(a, b)| match_pattern(a, b, env, class_env, local_env))
     }
 }
 
@@ -301,7 +342,7 @@ fn set_env_from_pattern(pattern: &Node, arg: &Object, env: &mut HashMap<String, 
         Node::Operator(_) => (),
         Node::List(nodes) => {
             if let Object::List(objs) = arg {
-                set_env_from_patterns(nodes, objs, env);
+                set_env_from_patterns(nodes, objs, env)
             } else {
                 panic!("!");
             }
@@ -326,7 +367,7 @@ fn set_env_from_pattern(pattern: &Node, arg: &Object, env: &mut HashMap<String, 
 
 fn set_env_from_patterns(patterns: &[Node], args: &[Object], env: &mut HashMap<String, Object>) {
     for (pattern, arg) in patterns.iter().zip(args) {
-        set_env_from_pattern(pattern, arg, env)
+        set_env_from_pattern(pattern, arg, env);
     }
 }
 
@@ -363,13 +404,9 @@ fn instance_method_call(
                     _ => None,
                 })
                 // TODO: shouldn't need to clone here
-                .find(|(patterns, _)| match_vec(patterns, args, env, &mut class_env.clone()))
+                .find(|(patterns, _)| match_arg_list(patterns, args, env, &mut class_env.clone()))
             {
-                let mut env = env.clone();
-                env.insert(
-                    "self".to_string(),
-                    Object::Instance(*class_id, properties.to_owned()),
-                );
+                let mut local_env: HashMap<String, Object> = HashMap::new();
                 if pattern.iter().any(|t| matches!(t, Node::Spread(_))) {
                     assert!(pattern.len() == 1);
                     if let Node::Spread(node) = pattern.first().unwrap() {
@@ -382,9 +419,19 @@ fn instance_method_call(
                         panic!("god no")
                     }
                 } else {
-                    set_env_from_patterns(pattern, args, &mut env);
+                    set_env_from_patterns(pattern, args, &mut local_env)
                 }
-                eval_node(method, &mut env, &mut class_env.clone())
+                local_env.insert(
+                    "self".to_string(),
+                    Object::Instance(*class_id, properties.to_owned()),
+                );
+                for (key, val) in env {
+                    if let Some(_) = local_env.get(key) {
+                        continue;
+                    }
+                    local_env.insert(key.to_owned(), val.clone());
+                }
+                eval_node(method, &mut local_env, &mut class_env.clone())
             } else {
                 panic!("no method found :(")
             }

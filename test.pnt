@@ -1,6 +1,8 @@
-[1; 2; 3;] :any?
-  object
-    def 4 -> true;
-    def _ -> false;
-  end.
+class X;
+
+def a a -> :match!;
+def X{b;} b -> :rec_match!;
+
+
+self X{b: 2;} 2.
   :log;

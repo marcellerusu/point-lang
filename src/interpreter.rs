@@ -400,6 +400,19 @@ fn method_call(
 ) -> Object {
     match lhs {
         Object::Int(val) => int_method_call(*val, args, env, class_env),
+        Object::Instance(class_id, properties)
+            if class_env
+                .get(class_id)
+                .filter(|c| c.name == "Int")
+                .is_some() =>
+        {
+            match properties.first() {
+                Some((name, Object::Int(val))) if name == "value" => {
+                    int_method_call(*val, args, env, class_env)
+                }
+                _ => panic!("ah"),
+            }
+        }
         Object::Instance(class_id, properties) => {
             instance_method_call(class_id, properties, args, env, class_env)
         }

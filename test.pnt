@@ -1,7 +1,7 @@
 class Object
-  def :say_hello ...args 2 -> args 0;
+  def :say_hello ...args 2 -> args;
 end
 
-
 [1; 2;] 0.
+  :say_hello 1 2 2.
   :log;

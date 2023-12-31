@@ -51,7 +51,7 @@ impl Object {
                     items
                         .iter()
                         .map(|item| item.to_s(class_env))
-                        .reduce(|a, b| a + "; " + &b)
+                        .reduce(|a, b| format!("{}; {}", a, b))
                         .unwrap()
                 )
             }
@@ -251,12 +251,14 @@ fn match_vec(
     }
 }
 
-fn try_eval_native_list_fn(items: &[Object], args: &[Object]) -> Option<Object> {
+fn try_eval_native_list_fn(
+    items: &[Object],
+    args: &[Object],
+    class_env: &HashMap<Uuid, Class>,
+) -> Option<Object> {
     match args {
         [Object::Keyword(name)] if name == "log" => {
-            // println!("{}", Object::List(items.to_vec()).to_s(class_env));
-            // TODO: bring back .to_s
-            println!("{:?}", items);
+            println!("{}", Object::List(items.to_vec()).to_s(class_env));
             Some(Object::Nil)
         }
         [Object::Int(val)] => Some(items.get(*val).map(|n| n.clone()).unwrap_or(Object::Nil)),
@@ -354,12 +356,16 @@ fn try_eval_native_nil_fn(args: &[Object]) -> Option<Object> {
     }
 }
 
-fn try_eval_native_fn(lhs: &Object, args: &[Object]) -> Option<Object> {
+fn try_eval_native_fn(
+    lhs: &Object,
+    args: &[Object],
+    class_env: &HashMap<Uuid, Class>,
+) -> Option<Object> {
     match lhs {
         Object::Keyword(name) => try_eval_native_keyword_fn(name, args),
         Object::Str(value) => try_eval_native_str_fn(value, args),
         Object::Int(value) => try_eval_native_int_fn(*value, args),
-        Object::List(items) => try_eval_native_list_fn(items, args),
+        Object::List(items) => try_eval_native_list_fn(items, args, class_env),
         Object::Nil => try_eval_native_nil_fn(args),
         Object::Instance(_, _) => todo!(),
         Object::Class(_) => todo!(),
@@ -651,7 +657,7 @@ fn eval_node(
             let lhs_object = &eval_node(lhs.as_ref(), env, class_env);
 
             // is it a native function?
-            if let Some(val) = try_eval_native_fn(lhs_object, &arg_objects) {
+            if let Some(val) = try_eval_native_fn(lhs_object, &arg_objects, class_env) {
                 return val;
             }
 

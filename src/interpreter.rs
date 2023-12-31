@@ -259,6 +259,7 @@ fn try_eval_native_list_fn(items: &[Object], args: &[Object]) -> Option<Object> 
             println!("{:?}", items);
             Some(Object::Nil)
         }
+        [Object::Int(val)] => Some(items.get(*val).map(|n| n.clone()).unwrap_or(Object::Nil)),
         // [Object::Keyword(name), obj] if name == "map" => {
         //     let new_items: Vec<Object> = items
         //         .iter()
@@ -343,13 +344,23 @@ fn try_eval_native_int_fn(lhs: usize, args: &[Object]) -> Option<Object> {
     }
 }
 
+fn try_eval_native_nil_fn(args: &[Object]) -> Option<Object> {
+    match args {
+        [Object::Keyword(name)] if name == "log" => {
+            println!("nil");
+            Some(Object::Nil)
+        }
+        _ => None,
+    }
+}
+
 fn try_eval_native_fn(lhs: &Object, args: &[Object]) -> Option<Object> {
     match lhs {
         Object::Keyword(name) => try_eval_native_keyword_fn(name, args),
         Object::Str(value) => try_eval_native_str_fn(value, args),
         Object::Int(value) => try_eval_native_int_fn(*value, args),
         Object::List(items) => try_eval_native_list_fn(items, args),
-        Object::Nil => None,
+        Object::Nil => try_eval_native_nil_fn(args),
         Object::Instance(_, _) => todo!(),
         Object::Class(_) => todo!(),
         Object::Operator(_) => todo!(),
@@ -563,7 +574,7 @@ fn method_call(
             {
                 method_call(*superclass_id, object_properties, args, env, class_env)
             } else {
-                panic!("no parent class found");
+                panic!("no method found");
             }
         }
     }

@@ -1,6 +1,6 @@
 class Object
-  def :say_hello -> "hello";
+  def ...args 2 -> args;
 end
 
-1 :say_hello.
+1 :say_hello 1 2.
   :log;

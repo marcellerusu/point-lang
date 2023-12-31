@@ -166,7 +166,66 @@ fn match_arg_list(
     env: &mut HashMap<String, Object>,
     class_env: &mut HashMap<Uuid, Class>,
 ) -> bool {
-    match_vec(method_args, args, env, class_env, &mut HashMap::new())
+    if method_args
+        .iter()
+        .find(|n| matches!(n, Node::Spread(_)))
+        .is_some()
+    {
+        // 1: check if there are enough args
+        if args.len() < method_args.len() - 1 {
+            return false;
+        }
+
+        // 2: get method_args before spread
+        let before_spread: Vec<Node> = method_args
+            .iter()
+            .take_while(|n| !matches!(n, Node::Spread(_)))
+            .map(|n| n.clone())
+            .collect();
+        // 3: get method_args after spread
+        let after_spread: Vec<Node> = method_args
+            .iter()
+            .rev()
+            .take_while(|n| !matches!(n, Node::Spread(_)))
+            .collect::<Vec<&Node>>()
+            .iter()
+            .rev()
+            .map(|n| (*n).clone())
+            .collect();
+
+        let mut local_env: HashMap<String, Object> = HashMap::new();
+
+        // 4: get actual args before spread
+
+        let args_before_spread: Vec<Object> = args
+            .iter()
+            .take(before_spread.len())
+            .map(|n| n.clone())
+            .collect();
+
+        // 5: how many args are there?
+        let num_spread_args = args.len() - (before_spread.len() + after_spread.len());
+
+        match_vec(
+            &before_spread,
+            &args_before_spread,
+            env,
+            class_env,
+            &mut local_env,
+        ) && match_vec(
+            &after_spread,
+            &args
+                .iter()
+                .skip(before_spread.len() + num_spread_args)
+                .map(|n| n.clone())
+                .collect::<Vec<Object>>(),
+            env,
+            class_env,
+            &mut local_env,
+        )
+    } else {
+        match_vec(method_args, args, env, class_env, &mut HashMap::new())
+    }
 }
 
 fn match_vec(
@@ -392,8 +451,8 @@ fn at_most_one_spread_arg(args: &Vec<Node>) -> bool {
 }
 
 fn spread_arg_is_id_lookup_if_exists(args: &Vec<Node>) -> bool {
-    if let Some(node) = args.iter().find(|n| matches!(n, Node::Spread(_))) {
-        matches!(node, Node::IdLookup(_))
+    if let Some(Node::Spread(node)) = args.iter().find(|n| matches!(n, Node::Spread(_))) {
+        matches!((*node).as_ref(), Node::IdLookup(_))
     } else {
         true
     }
@@ -417,9 +476,8 @@ fn set_env_for_spread_arg(
     local_env: &mut HashMap<String, Object>,
 ) {
     // 1: only 1 spread arg allowed && it should be an id lookup
-    assert!(
-        at_most_one_spread_arg(&method_args) && spread_arg_is_id_lookup_if_exists(&method_args)
-    );
+    assert!(at_most_one_spread_arg(&method_args));
+    assert!(spread_arg_is_id_lookup_if_exists(&method_args));
 
     // 2: get arguments before spread
     let before_spread: Vec<&Node> = method_args
@@ -431,18 +489,16 @@ fn set_env_for_spread_arg(
         .iter()
         .rev()
         .take_while(|n| !matches!(n, Node::Spread(_)))
+        .collect::<Vec<&Node>>()
+        .iter()
+        .rev()
+        .map(|n| *n)
         .collect();
     // 4: set args from before spread
     for (pattern, arg) in before_spread.iter().zip(args) {
         set_env_from_pattern(pattern, arg, local_env)
     }
     // 5: determine how many spread arguments
-    println!(
-        "args: {:?}, after_spread: {:?}, before_spread: {:?}",
-        args.len(),
-        after_spread.len(),
-        before_spread.len()
-    );
     let num_spread_args = args.len() - (after_spread.len() + before_spread.len());
     // 6: assign those spread arguments
     let spread_arg_name = get_spread_arg_name(&method_args);

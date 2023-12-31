@@ -1,5 +1,5 @@
 use core::panic;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use uuid::Uuid;
 
@@ -63,6 +63,7 @@ impl Object {
 pub struct Class {
     name: String,
     methods: Vec<Node>,
+    superclass: Option<Uuid>,
 }
 
 fn match_pattern(
@@ -161,7 +162,7 @@ fn match_pattern(
 
 fn match_arg_list(
     method_args: &Vec<Node>,
-    args: &Vec<Object>,
+    args: &[Object],
     env: &mut HashMap<String, Object>,
     class_env: &mut HashMap<Uuid, Class>,
 ) -> bool {
@@ -170,7 +171,7 @@ fn match_arg_list(
 
 fn match_vec(
     method_args: &Vec<Node>,
-    args: &Vec<Object>,
+    args: &[Object],
     env: &mut HashMap<String, Object>,
     class_env: &mut HashMap<Uuid, Class>,
     local_env: &mut HashMap<String, Object>,
@@ -191,114 +192,108 @@ fn match_vec(
     }
 }
 
-fn int_method_call(
-    lhs: usize,
-    args: &Vec<Object>,
-    env: &mut HashMap<String, Object>,
-    class_env: &mut HashMap<Uuid, Class>,
-) -> Object {
-    match args.as_slice() {
-        [Object::Keyword(name)] if name == "log" => {
-            println!("{}", lhs);
-            Object::Nil
-        }
-        [Object::Operator(op), Object::Int(other_val)] if op == "+" => Object::Int(lhs + other_val),
-        [] => panic!("no args passed to object"),
-        _ => {
-            if let Some(Object::Class(class_id)) = env.get("Int") {
-                instance_method_call(
-                    class_id,
-                    &vec![("value".to_owned(), Object::Int(lhs))],
-                    args,
-                    &mut env.clone(),
-                    class_env,
-                )
-            } else {
-                panic!("wtf");
-            }
-        }
-    }
-}
-
-fn str_method_call(lhs: &String, args: &Vec<Object>) -> Object {
-    match args.as_slice() {
-        [Object::Keyword(name)] if name == "log" => {
-            println!("{}", lhs);
-            Object::Nil
-        }
-        _ => todo!("unknown str method, {:?}", args),
-    }
-}
-
-fn kw_method_call(lhs: &String, args: &Vec<Object>) -> Object {
-    match args.as_slice() {
-        [Object::Keyword(name)] if name == "log" => {
-            println!(":{}", lhs);
-            Object::Nil
-        }
-        _ => todo!("unknown str method, {:?}", args),
-    }
-}
-
-fn list_method_call(
-    items: &[Object],
-    args: &[Object],
-    env: &mut HashMap<String, Object>,
-    class_env: &mut HashMap<Uuid, Class>,
-) -> Object {
+fn try_eval_native_list_fn(items: &[Object], args: &[Object]) -> Option<Object> {
     match args {
         [Object::Keyword(name)] if name == "log" => {
-            println!("{}", Object::List(items.to_vec()).to_s(class_env));
-            Object::Nil
+            // println!("{}", Object::List(items.to_vec()).to_s(class_env));
+            // TODO: bring back .to_s
+            println!("{:?}", items);
+            Some(Object::Nil)
         }
-        [Object::Keyword(name), obj] if name == "map" => {
-            let new_items: Vec<Object> = items
-                .iter()
-                .map(|item| method_call(obj, &vec![item.to_owned()], env, class_env))
-                .collect();
+        // [Object::Keyword(name), obj] if name == "map" => {
+        //     let new_items: Vec<Object> = items
+        //         .iter()
+        //         .map(|item| method_call(obj, &vec![item.to_owned()], env, class_env))
+        //         .collect();
 
-            Object::List(new_items)
-        }
-        [Object::Keyword(name), obj] if name == "filter" => {
-            if let Some(Object::Class(true_class_id)) = env.get("TrueClass") {
-                let true_class_id = true_class_id.clone();
-                let new_items: Vec<Object> = items
-                    .iter()
-                    .filter(|item| {
-                        let result = method_call(obj, &vec![(*item).to_owned()], env, class_env);
-                        match result {
-                            Object::Instance(class_id, _) => class_id == true_class_id,
-                            _ => false,
-                        }
-                    })
-                    .map(|item| item.clone())
-                    .collect();
+        //     Some(Object::List(new_items))
+        // }
+        // [Object::Keyword(name), obj] if name == "filter" => {
+        //     if let Some(Object::Class(true_class_id)) = env.get("TrueClass") {
+        //         let true_class_id = true_class_id.clone();
+        //         let new_items: Vec<Object> = items
+        //             .iter()
+        //             .filter(|item| {
+        //                 let result = method_call(obj, &vec![(*item).to_owned()], env, class_env);
+        //                 match result {
+        //                     Object::Instance(class_id, _) => class_id == true_class_id,
+        //                     _ => false,
+        //                 }
+        //             })
+        //             .map(|item| item.clone())
+        //             .collect();
 
-                Object::List(new_items)
-            } else {
-                panic!("ah")
-            }
+        //         Object::List(new_items)
+        //     } else {
+        //         panic!("ah")
+        //     }
+        // }
+        // [Object::Keyword(name), obj] if name == "any?" => {
+        //     if let Some(Object::Class(true_class_id)) = env.get("TrueClass") {
+        //         let true_class_id = true_class_id.clone();
+        //         let result = items.iter().any(|item| {
+        //             let result = method_call(obj, &vec![(*item).to_owned()], env, class_env);
+        //             match result {
+        //                 Object::Instance(class_id, _) => class_id == true_class_id,
+        //                 _ => false,
+        //             }
+        //         });
+        //         if result {
+        //             eval_node(&Node::IdLookup("true".to_string()), env, class_env)
+        //         } else {
+        //             eval_node(&Node::IdLookup("false".to_string()), env, class_env)
+        //         }
+        //     } else {
+        //         panic!("ah")
+        //     }
+        // }
+        _ => None,
+    }
+}
+
+fn try_eval_native_keyword_fn(val: &String, args: &[Object]) -> Option<Object> {
+    match args {
+        [Object::Keyword(name)] if name == "log" => {
+            println!(":{}", val);
+            Some(Object::Nil)
         }
-        [Object::Keyword(name), obj] if name == "any?" => {
-            if let Some(Object::Class(true_class_id)) = env.get("TrueClass") {
-                let true_class_id = true_class_id.clone();
-                let result = items.iter().any(|item| {
-                    let result = method_call(obj, &vec![(*item).to_owned()], env, class_env);
-                    match result {
-                        Object::Instance(class_id, _) => class_id == true_class_id,
-                        _ => false,
-                    }
-                });
-                if result {
-                    eval_node(&Node::IdLookup("true".to_string()), env, class_env)
-                } else {
-                    eval_node(&Node::IdLookup("false".to_string()), env, class_env)
-                }
-            } else {
-                panic!("ah")
-            }
+        _ => None,
+    }
+}
+
+fn try_eval_native_str_fn(lhs: &String, args: &[Object]) -> Option<Object> {
+    match args {
+        [Object::Keyword(name)] if name == "log" => {
+            println!("{}", lhs);
+            Some(Object::Nil)
         }
-        _ => todo!("unknown list method, {:?}", args),
+        _ => None,
+    }
+}
+
+fn try_eval_native_int_fn(lhs: usize, args: &[Object]) -> Option<Object> {
+    match args {
+        [Object::Keyword(name)] if name == "log" => {
+            println!("{}", lhs);
+            Some(Object::Nil)
+        }
+        [Object::Operator(op), Object::Int(other_val)] if op == "+" => {
+            Some(Object::Int(lhs + other_val))
+        }
+        _ => None,
+    }
+}
+
+fn try_eval_native_fn(lhs: &Object, args: &[Object]) -> Option<Object> {
+    match lhs {
+        Object::Keyword(name) => try_eval_native_keyword_fn(name, args),
+        Object::Str(value) => try_eval_native_str_fn(value, args),
+        Object::Int(value) => try_eval_native_int_fn(*value, args),
+        Object::List(items) => try_eval_native_list_fn(items, args),
+        Object::Nil => None,
+        Object::Instance(_, _) => todo!(),
+        Object::Class(_) => todo!(),
+        Object::Operator(_) => todo!(),
     }
 }
 
@@ -362,102 +357,216 @@ fn set_env_from_patterns(patterns: &[Node], args: &[Object], env: &mut HashMap<S
     }
 }
 
-fn instance_method_call(
-    class_id: &Uuid,
-    properties: &Vec<(String, Object)>,
-    args: &Vec<Object>,
+fn try_eval_property_lookup(
+    object_properties: &HashMap<String, Object>,
+    args: &[Object],
+) -> Option<Object> {
+    match args {
+        [Object::Keyword(name)] => object_properties.get(name).map(|t| t.clone()),
+        _ => None,
+    }
+}
+
+fn find_method_for(
+    class_id: Uuid,
+    args: &[Object],
+    env: &mut HashMap<String, Object>,
+    class_env: &mut HashMap<Uuid, Class>,
+) -> Option<(Vec<Node>, Box<Node>)> {
+    match class_env.get(&class_id) {
+        Some(class) => class
+            .methods
+            .iter()
+            .filter_map(|t| match t {
+                Node::Def(args, body) => Some((args, body)),
+                _ => None,
+            })
+            .find(|(patterns, _)| match_arg_list(patterns, args, env, &mut class_env.clone()))
+            .map(|(a, b)| (a.clone(), b.clone())),
+        _ => None,
+    }
+}
+
+fn at_most_one_spread_arg(args: &Vec<Node>) -> bool {
+    args.iter().filter(|n| matches!(n, Node::Spread(_))).count() <= 1
+}
+
+fn spread_arg_is_id_lookup_if_exists(args: &Vec<Node>) -> bool {
+    if let Some(node) = args.iter().find(|n| matches!(n, Node::Spread(_))) {
+        matches!(node, Node::IdLookup(_))
+    } else {
+        true
+    }
+}
+
+fn get_spread_arg_name(args: &Vec<Node>) -> String {
+    args.iter()
+        .find_map(|n| match n {
+            Node::Spread(node) => match *node.to_owned() {
+                Node::IdLookup(name) => Some(name.to_owned()),
+                _ => None,
+            },
+            _ => None,
+        })
+        .unwrap()
+}
+
+fn set_env_for_spread_arg(
+    method_args: &Vec<Node>,
+    args: &[Object],
+    local_env: &mut HashMap<String, Object>,
+) {
+    // 1: only 1 spread arg allowed && it should be an id lookup
+    assert!(
+        at_most_one_spread_arg(&method_args) && spread_arg_is_id_lookup_if_exists(&method_args)
+    );
+
+    // 2: get arguments before spread
+    let before_spread: Vec<&Node> = method_args
+        .iter()
+        .take_while(|n| !matches!(n, Node::Spread(_)))
+        .collect();
+    // 3: get arguments after spread
+    let after_spread: Vec<&Node> = method_args
+        .iter()
+        .rev()
+        .take_while(|n| !matches!(n, Node::Spread(_)))
+        .collect();
+    // 4: set args from before spread
+    for (pattern, arg) in before_spread.iter().zip(args) {
+        set_env_from_pattern(pattern, arg, local_env)
+    }
+    // 5: determine how many spread arguments
+    println!(
+        "args: {:?}, after_spread: {:?}, before_spread: {:?}",
+        args.len(),
+        after_spread.len(),
+        before_spread.len()
+    );
+    let num_spread_args = args.len() - (after_spread.len() + before_spread.len());
+    // 6: assign those spread arguments
+    let spread_arg_name = get_spread_arg_name(&method_args);
+    let mut spread_elements: Vec<Object> = vec![];
+    for arg in args.iter().skip(before_spread.len()).take(num_spread_args) {
+        spread_elements.push(arg.clone());
+    }
+    local_env.insert(spread_arg_name, Object::List(spread_elements));
+    // 7: set args after the spread
+    for (pattern, arg) in after_spread
+        .iter()
+        .zip(args.iter().skip(after_spread.len() + num_spread_args))
+    {
+        set_env_from_pattern(pattern, arg, local_env);
+    }
+}
+
+fn method_call(
+    class_id: Uuid,
+    object_properties: HashMap<String, Object>,
+    args: &[Object],
     env: &mut HashMap<String, Object>,
     class_env: &mut HashMap<Uuid, Class>,
 ) -> Object {
-    let keys: HashSet<&String> = properties.iter().map(|(name, _)| name).collect();
-    match args.as_slice() {
-        [Object::Keyword(name)] if keys.get(name).is_some() => properties
-            .iter()
-            .find(|(name_, _)| name == name_)
-            .map(|(_, obj)| obj)
-            .unwrap()
-            .to_owned(),
+    // Person{name: "marcelle";} :name;
+    if let Some(val) = try_eval_property_lookup(&object_properties, args) {
+        return val;
+    }
 
-        [Object::Keyword(name)] if name == "log" => {
-            println!(
-                "{}",
-                Object::Instance(*class_id, properties.to_vec()).to_s(class_env)
-            );
-            Object::Nil
-        }
-        _ => {
-            let class = class_env.get(class_id).unwrap();
-            if let Some((pattern, method)) = class
-                .methods
-                .iter()
-                .filter_map(|t| match t {
-                    Node::Def(args, body) => Some((args, body)),
-                    _ => None,
-                })
-                // TODO: shouldn't need to clone here
-                .find(|(patterns, _)| match_arg_list(patterns, args, env, &mut class_env.clone()))
-            {
-                let mut local_env: HashMap<String, Object> = HashMap::new();
-                if pattern.iter().any(|t| matches!(t, Node::Spread(_))) {
-                    assert!(pattern.len() == 1);
-                    if let Node::Spread(node) = pattern.first().unwrap() {
-                        if let Node::IdLookup(name) = node.as_ref() {
-                            env.insert(name.to_owned(), Object::List(args.to_owned()));
-                        } else {
-                            panic!("... uh")
-                        }
-                    } else {
-                        panic!("god no")
-                    }
-                } else {
-                    set_env_from_patterns(pattern, args, &mut local_env)
-                }
-                local_env.insert(
-                    "self".to_string(),
-                    Object::Instance(*class_id, properties.to_owned()),
-                );
-                for (key, val) in env {
-                    if let Some(_) = local_env.get(key) {
-                        continue;
-                    }
-                    local_env.insert(key.to_owned(), val.clone());
-                }
-                eval_node(method, &mut local_env, &mut class_env.clone())
+    match find_method_for(class_id, args, env, class_env) {
+        Some((method_args, body)) => {
+            let mut local_env: HashMap<String, Object> = HashMap::new();
+            if method_args.iter().any(|n| matches!(n, Node::Spread(_))) {
+                set_env_for_spread_arg(&method_args, args, &mut local_env);
             } else {
-                panic!("no method found :(")
+                set_env_from_patterns(&method_args, args, env);
+            }
+            local_env.insert(
+                "self".to_string(),
+                Object::Instance(
+                    class_id,
+                    object_properties
+                        .iter()
+                        .map(|(a, b)| (a.clone(), b.clone()))
+                        .collect(),
+                ),
+            );
+            for (key, val) in env {
+                if let Some(_) = local_env.get(key) {
+                    continue;
+                }
+                local_env.insert(key.to_owned(), val.clone());
+            }
+            eval_node(&body, &mut local_env, &mut class_env.clone())
+        }
+        None => {
+            if let Some(Class {
+                name: _,
+                methods: _,
+                superclass: Some(superclass_id),
+            }) = class_env.get(&class_id)
+            {
+                method_call(*superclass_id, object_properties, args, env, class_env)
+            } else {
+                panic!("no parent class found");
             }
         }
     }
 }
 
-fn method_call(
-    lhs: &Object,
-    args: &Vec<Object>,
-    env: &mut HashMap<String, Object>,
-    class_env: &mut HashMap<Uuid, Class>,
-) -> Object {
-    match lhs {
-        Object::Int(val) => int_method_call(*val, args, env, class_env),
-        Object::Instance(class_id, properties)
-            if class_env
-                .get(class_id)
-                .filter(|c| c.name == "Int")
-                .is_some() =>
-        {
-            match properties.first() {
-                Some((name, Object::Int(val))) if name == "value" => {
-                    int_method_call(*val, args, env, class_env)
-                }
-                _ => panic!("ah"),
+fn get_object_class_id(env: &HashMap<String, Object>) -> Option<Uuid> {
+    if let Some(Object::Class(id)) = env.get("Object") {
+        Some(id.clone())
+    } else {
+        panic!("no object class")
+    }
+}
+
+fn get_class_id(object: &Object, env: &HashMap<String, Object>) -> Uuid {
+    match object {
+        Object::Instance(class_id, _) => *class_id,
+        Object::Nil => {
+            if let Some(Object::Class(id)) = env.get("Nil") {
+                *id
+            } else {
+                panic!("Couldn't find Nil class")
             }
         }
-        Object::Instance(class_id, properties) => {
-            instance_method_call(class_id, properties, args, env, class_env)
+        Object::Keyword(_) => {
+            if let Some(Object::Class(id)) = env.get("Keyword") {
+                *id
+            } else {
+                panic!("Couldn't find Keyword class")
+            }
         }
-        Object::List(items) => list_method_call(items, args, env, class_env),
-        Object::Str(val) => str_method_call(val, args),
-        Object::Keyword(kw) => kw_method_call(kw, args),
-        _ => panic!("unknown method {:?}", lhs),
+        Object::Str(_) => {
+            if let Some(Object::Class(id)) = env.get("Str") {
+                *id
+            } else {
+                panic!("Couldn't find Str class")
+            }
+        }
+        Object::Int(_) => {
+            if let Some(Object::Class(id)) = env.get("Int") {
+                *id
+            } else {
+                panic!("Couldn't find Int class")
+            }
+        }
+        Object::Class(_) => todo!(),
+        Object::Operator(_) => {
+            if let Some(Object::Class(id)) = env.get("Operator") {
+                *id
+            } else {
+                panic!("Couldn't find Operator class")
+            }
+        }
+        Object::List(_) => {
+            if let Some(Object::Class(id)) = env.get("List") {
+                *id
+            } else {
+                panic!("Couldn't find List class")
+            }
+        }
     }
 }
 
@@ -468,60 +577,54 @@ fn eval_node(
 ) -> Object {
     match node {
         Node::MethodCall(lhs, args) => {
-            // handle spread!
-            if let Some(p) = args.iter().position(|n| matches!(n, Node::Spread(_))) {
-                // for now only handle spreading from last element
-                assert!(p == args.len() - 1);
-                let mut arg_objects = vec![];
-                for arg in args.iter().take(args.len() - 1) {
-                    arg_objects.push(eval_node(arg, env, class_env));
-                }
-                if let Some(Node::Spread(node)) = args.last() {
-                    if let Node::IdLookup(name) = node.as_ref() {
-                        if let Object::List(list) = env.get(name).unwrap() {
-                            arg_objects.extend(list.to_owned());
-                            method_call(
-                                &eval_node(lhs.as_ref(), env, class_env),
-                                &arg_objects,
-                                env,
-                                class_env,
-                            )
-                        } else {
-                            panic!(" :( :(")
-                        }
-                    } else {
-                        panic!("NOOOOO")
-                    }
-                } else {
-                    panic!("ah no boy!")
-                }
-            } else {
-                // no spread!
-                let arg_objects: Vec<Object> = args
-                    .iter()
-                    .map(|item| eval_node(item, env, class_env))
-                    .collect();
+            let arg_objects: Vec<Object> = args
+                .iter()
+                .map(|item| eval_node(item, env, class_env))
+                .collect();
+            let lhs_object = &eval_node(lhs.as_ref(), env, class_env);
 
-                method_call(
-                    &eval_node(lhs.as_ref(), env, class_env),
-                    &arg_objects,
-                    env,
-                    class_env,
-                )
+            // is it a native function?
+            if let Some(val) = try_eval_native_fn(lhs_object, &arg_objects) {
+                return val;
             }
+
+            let mut properties: HashMap<String, Object> = HashMap::new();
+            match lhs_object {
+                Object::Instance(_, props) => {
+                    for (key, val) in props {
+                        properties.insert(key.clone(), val.clone());
+                    }
+                }
+                _ => (),
+            }
+
+            method_call(
+                get_class_id(lhs_object, env),
+                properties,
+                &arg_objects,
+                env,
+                class_env,
+            )
         }
         Node::Keyword(name) => Object::Keyword(name.to_owned()),
         Node::Class(name, defs) => {
-            let uuid = Uuid::new_v4();
-            env.insert(name.to_owned(), Object::Class(uuid));
+            let uuid: Uuid;
 
-            class_env.insert(
-                uuid,
-                Class {
-                    name: name.to_owned(),
-                    methods: vec![],
-                },
-            );
+            if let Some(Object::Class(id)) = env.get(name) {
+                uuid = *id;
+            } else {
+                uuid = Uuid::new_v4();
+                env.insert(name.to_owned(), Object::Class(uuid));
+
+                class_env.insert(
+                    uuid,
+                    Class {
+                        name: name.to_owned(),
+                        methods: vec![],
+                        superclass: get_object_class_id(env),
+                    },
+                );
+            }
 
             let mut child_env = env.clone();
             // TODO: this should probably be an instance of "Class"
@@ -600,6 +703,7 @@ fn eval_node(
                 Class {
                     name: "<anon class>".to_string(),
                     methods: methods.to_vec(),
+                    superclass: get_object_class_id(env),
                 },
             );
             Object::Instance(id, vec![])
@@ -623,12 +727,17 @@ fn eval_node(
 pub fn interpret(ast: Vec<Node>) -> Object {
     let main_id = Uuid::new_v4();
     let object_id = Uuid::new_v4();
+    let mut env: HashMap<String, Object> = HashMap::from([
+        ("self".to_owned(), Object::Instance(main_id, vec![])),
+        ("Object".to_owned(), Object::Class(object_id)),
+    ]);
     let mut class_env: HashMap<Uuid, Class> = HashMap::from([
         (
             main_id,
             Class {
                 name: "Main".to_string(),
                 methods: vec![],
+                superclass: None,
             },
         ),
         (
@@ -636,12 +745,9 @@ pub fn interpret(ast: Vec<Node>) -> Object {
             Class {
                 name: "Object".to_string(),
                 methods: vec![],
+                superclass: None,
             },
         ),
-    ]);
-    let mut env: HashMap<String, Object> = HashMap::from([
-        ("self".to_owned(), Object::Instance(main_id, vec![])),
-        ("Object".to_owned(), Object::Class(object_id)),
     ]);
     let mut result: Object = Object::Nil;
 

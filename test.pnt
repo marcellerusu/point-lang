@@ -1,8 +1,6 @@
-class X;
+class Object
+  def :say_hello -> "hello";
+end
 
-def a a -> :match!;
-def X{b;} b -> :rec_match!;
-
-
-self X{b: 2;} 2.
+1 :say_hello.
   :log;

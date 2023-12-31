@@ -1,3 +1,10 @@
+class Int;
+class Nil;
+class Keyword;
+class List;
+class Operator;
+class Str;
+
 class TrueClass
   def && ^false -> false;
   def && ^true -> true;

@@ -1,0 +1,34 @@
+{
+  "name": "point-lang",
+  "displayName": "point-lang",
+  "description": "point language support",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "point",
+        "aliases": [
+          "point",
+          "point"
+        ],
+        "extensions": [
+          ".pnt"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "point",
+        "scopeName": "source.pnt",
+        "path": "./syntaxes/point.tmLanguage.json"
+      }
+    ]
+  }
+}

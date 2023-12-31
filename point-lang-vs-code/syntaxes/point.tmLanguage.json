@@ -1,0 +1,117 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "point",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#lang_constants"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#regex"
+    },
+    {
+      "include": "#functions"
+    },
+    {
+      "include": "#record_constructor"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#variables"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.point",
+          "begin": "(--).*",
+          "end": "\n"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.point",
+          "match": "(def|class|end|object)\\b"
+        }
+      ]
+    },
+    "variables": {
+      "patterns": [
+        {
+          "match": "\\b([A-Z][a-zA-Z0-9_\\-\\!\\?]*)\\b",
+          "name": "entity.name.type"
+        },
+        {
+          "match": "\\b([a-z][a-zA-Z0-9_\\-\\!\\?]*)\\b",
+          "name": "variable.name"
+        }
+      ]
+    },
+    "lang_constants": {
+      "patterns": [
+        {
+          "match": "\\b(true|false|nil|this)\\b",
+          "name": "constant.language"
+        },
+        {
+          "match": "(:[a-zA-Z_?!$0-9/]+)",
+          "name": "constant.language"
+        }
+      ]
+    },
+    "regex": {
+      "name": "constant.regexp",
+      "match": "(\\/.*\\/)",
+      "patterns": [
+        {
+          "name": "constant.character.escape.point",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.point",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.point",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "match": "[\\-\\+]?(\\d+)(n)",
+          "captures": {
+            "1": {
+              "name": "constant.numeric"
+            },
+            "2": {
+              "name": "emphasis"
+            }
+          }
+        },
+        {
+          "name": "constant.numeric",
+          "match": "[\\-\\+]?(\\d*\\.)?\\d+"
+        }
+      ]
+    }
+  },
+  "scopeName": "source.pnt"
+}

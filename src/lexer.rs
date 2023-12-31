@@ -174,7 +174,7 @@ pub fn tokenize(program_string: String) -> Vec<Token> {
     let end_chars = HashSet::from([".", ";", " ", "}", ")", "\n"]);
 
     let one_char_operators = HashSet::from(["+", "-", "*", "/", "%", ">", "<", "=", "|", "&"]);
-    let two_char_operators = HashSet::from(["**", ">=", "<=", "==", "&&", "||", ".."]);
+    let two_char_operators = HashSet::from(["**", ">=", "<=", "==", "&&", "||", "..", "|>"]);
     let three_char_operators = HashSet::from(["..="]);
 
     while idx < program_string.len() {

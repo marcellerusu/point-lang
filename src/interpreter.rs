@@ -254,7 +254,8 @@ fn match_vec(
 fn try_eval_native_list_fn(
     items: &[Object],
     args: &[Object],
-    class_env: &HashMap<Uuid, Class>,
+    env: &mut HashMap<String, Object>,
+    class_env: &mut HashMap<Uuid, Class>,
 ) -> Option<Object> {
     match args {
         [Object::Keyword(name)] if name == "log" => {
@@ -262,53 +263,81 @@ fn try_eval_native_list_fn(
             Some(Object::Nil)
         }
         [Object::Int(val)] => Some(items.get(*val).map(|n| n.clone()).unwrap_or(Object::Nil)),
-        // [Object::Keyword(name), obj] if name == "map" => {
-        //     let new_items: Vec<Object> = items
-        //         .iter()
-        //         .map(|item| method_call(obj, &vec![item.to_owned()], env, class_env))
-        //         .collect();
+        [Object::Keyword(name), obj] if name == "map" => {
+            let new_items: Vec<Object> = items
+                .iter()
+                .map(|item| {
+                    method_call(
+                        get_class_id(obj, env),
+                        get_object_properties(obj),
+                        &vec![item.to_owned()],
+                        env,
+                        class_env,
+                    )
+                })
+                .collect();
 
-        //     Some(Object::List(new_items))
-        // }
-        // [Object::Keyword(name), obj] if name == "filter" => {
-        //     if let Some(Object::Class(true_class_id)) = env.get("TrueClass") {
-        //         let true_class_id = true_class_id.clone();
-        //         let new_items: Vec<Object> = items
-        //             .iter()
-        //             .filter(|item| {
-        //                 let result = method_call(obj, &vec![(*item).to_owned()], env, class_env);
-        //                 match result {
-        //                     Object::Instance(class_id, _) => class_id == true_class_id,
-        //                     _ => false,
-        //                 }
-        //             })
-        //             .map(|item| item.clone())
-        //             .collect();
+            Some(Object::List(new_items))
+        }
+        [Object::Keyword(name), obj] if name == "filter" => {
+            if let Some(Object::Class(true_class_id)) = env.get("TrueClass") {
+                let true_class_id = true_class_id.clone();
+                let new_items: Vec<Object> = items
+                    .iter()
+                    .filter(|item| {
+                        let result = method_call(
+                            get_class_id(obj, env),
+                            get_object_properties(obj),
+                            &vec![(*item).to_owned()],
+                            env,
+                            class_env,
+                        );
+                        match result {
+                            Object::Instance(class_id, _) => class_id == true_class_id,
+                            _ => false,
+                        }
+                    })
+                    .map(|item| item.clone())
+                    .collect();
 
-        //         Object::List(new_items)
-        //     } else {
-        //         panic!("ah")
-        //     }
-        // }
-        // [Object::Keyword(name), obj] if name == "any?" => {
-        //     if let Some(Object::Class(true_class_id)) = env.get("TrueClass") {
-        //         let true_class_id = true_class_id.clone();
-        //         let result = items.iter().any(|item| {
-        //             let result = method_call(obj, &vec![(*item).to_owned()], env, class_env);
-        //             match result {
-        //                 Object::Instance(class_id, _) => class_id == true_class_id,
-        //                 _ => false,
-        //             }
-        //         });
-        //         if result {
-        //             eval_node(&Node::IdLookup("true".to_string()), env, class_env)
-        //         } else {
-        //             eval_node(&Node::IdLookup("false".to_string()), env, class_env)
-        //         }
-        //     } else {
-        //         panic!("ah")
-        //     }
-        // }
+                Some(Object::List(new_items))
+            } else {
+                panic!("ah")
+            }
+        }
+        [Object::Keyword(name), obj] if name == "any?" => {
+            if let Some(Object::Class(true_class_id)) = env.get("TrueClass") {
+                let true_class_id = true_class_id.clone();
+                let result = items.iter().any(|item| {
+                    let result = method_call(
+                        get_class_id(obj, env),
+                        get_object_properties(obj),
+                        &vec![(*item).to_owned()],
+                        env,
+                        class_env,
+                    );
+                    match result {
+                        Object::Instance(class_id, _) => class_id == true_class_id,
+                        _ => false,
+                    }
+                });
+                if result {
+                    Some(eval_node(
+                        &Node::IdLookup("true".to_string()),
+                        env,
+                        class_env,
+                    ))
+                } else {
+                    Some(eval_node(
+                        &Node::IdLookup("false".to_string()),
+                        env,
+                        class_env,
+                    ))
+                }
+            } else {
+                panic!("ah")
+            }
+        }
         _ => None,
     }
 }
@@ -356,18 +385,40 @@ fn try_eval_native_nil_fn(args: &[Object]) -> Option<Object> {
     }
 }
 
+fn try_eval_native_instance_fn(
+    id: &Uuid,
+    properties: &Vec<(String, Object)>,
+    args: &[Object],
+    _env: &HashMap<String, Object>,
+    class_env: &HashMap<Uuid, Class>,
+) -> Option<Object> {
+    match args {
+        [Object::Keyword(name)] if name == "log" => {
+            println!(
+                "{}",
+                Object::Instance(*id, properties.clone()).to_s(class_env)
+            );
+            Some(Object::Nil)
+        }
+        _ => None,
+    }
+}
+
 fn try_eval_native_fn(
     lhs: &Object,
     args: &[Object],
-    class_env: &HashMap<Uuid, Class>,
+    env: &mut HashMap<String, Object>,
+    class_env: &mut HashMap<Uuid, Class>,
 ) -> Option<Object> {
     match lhs {
         Object::Keyword(name) => try_eval_native_keyword_fn(name, args),
         Object::Str(value) => try_eval_native_str_fn(value, args),
         Object::Int(value) => try_eval_native_int_fn(*value, args),
-        Object::List(items) => try_eval_native_list_fn(items, args, class_env),
+        Object::List(items) => try_eval_native_list_fn(items, args, env, class_env),
         Object::Nil => try_eval_native_nil_fn(args),
-        Object::Instance(_, _) => todo!(),
+        Object::Instance(class_id, properties) => {
+            try_eval_native_instance_fn(class_id, properties, args, env, class_env)
+        }
         Object::Class(_) => todo!(),
         Object::Operator(_) => todo!(),
     }
@@ -643,6 +694,19 @@ fn get_class_id(object: &Object, env: &HashMap<String, Object>) -> Uuid {
     }
 }
 
+fn get_object_properties(object: &Object) -> HashMap<String, Object> {
+    let mut properties: HashMap<String, Object> = HashMap::new();
+    match object {
+        Object::Instance(_, props) => {
+            for (key, val) in props {
+                properties.insert(key.clone(), val.clone());
+            }
+        }
+        _ => (),
+    }
+    properties
+}
+
 fn eval_node(
     node: &Node,
     env: &mut HashMap<String, Object>,
@@ -657,23 +721,13 @@ fn eval_node(
             let lhs_object = &eval_node(lhs.as_ref(), env, class_env);
 
             // is it a native function?
-            if let Some(val) = try_eval_native_fn(lhs_object, &arg_objects, class_env) {
+            if let Some(val) = try_eval_native_fn(lhs_object, &arg_objects, env, class_env) {
                 return val;
-            }
-
-            let mut properties: HashMap<String, Object> = HashMap::new();
-            match lhs_object {
-                Object::Instance(_, props) => {
-                    for (key, val) in props {
-                        properties.insert(key.clone(), val.clone());
-                    }
-                }
-                _ => (),
             }
 
             method_call(
                 get_class_id(lhs_object, env),
-                properties,
+                get_object_properties(lhs_object),
                 &arg_objects,
                 env,
                 class_env,

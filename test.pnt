@@ -2,6 +2,9 @@ class Object
   def :say_hello ...args 2 -> args;
 end
 
-[1; 2;] 0.
-  :say_hello 1 2 2.
+[1; 2;] :any?
+  object
+    def 1 -> true;
+    def 2 -> false;
+  end.  
   :log;

@@ -24,6 +24,10 @@ impl Object {
                 let class = class_env.get(class_id).unwrap();
                 if ["Int", "String"].contains(&class.name.as_str()) {
                     props.get(0).unwrap().1.to_s(class_env)
+                } else if class.name == "TrueClass" {
+                    "true".to_string()
+                } else if class.name == "FalseClass" {
+                    "false".to_string()
                 } else {
                     let name = if class.name == "Object" {
                         "".to_owned()
@@ -66,6 +70,27 @@ pub struct Class {
     superclass: Option<Uuid>,
 }
 
+fn match_record_properties_pattern(
+    pattern_props: &Vec<(String, Node)>,
+    obj_props: &Vec<(String, Object)>,
+    env: &mut HashMap<String, Object>,
+    class_env: &mut HashMap<Uuid, Class>,
+    local_env: &mut HashMap<String, Object>,
+) -> bool {
+    let obj_map: HashMap<String, Object> = obj_props.iter().map(|t| t.clone()).collect();
+    for (key, node) in pattern_props {
+        match obj_map.get(key) {
+            Some(val) => {
+                if !match_pattern(node, val, env, class_env, local_env) {
+                    return false;
+                }
+            }
+            _ => return false,
+        }
+    }
+    true
+}
+
 fn match_pattern(
     a: &Node,
     b: &Object,
@@ -78,22 +103,11 @@ fn match_pattern(
         (Node::Keyword(_), _) => false,
         (Node::Class(_, _), _) => todo!("class eq"),
         (Node::MethodCall(_, _), _) => todo!("not sure"),
-        (Node::RecordConstructor(a, r_props), Object::Instance(id, props)) => {
+        (Node::RecordConstructor(a, pattern_props), Object::Instance(id, obj_props)) => {
             if !class_env.get(id).map(|c| &c.name == a).unwrap_or(false) {
                 return false;
             }
-            let obj_map: HashMap<String, Object> = props.iter().map(|t| t.clone()).collect();
-            for (key, node) in r_props {
-                match obj_map.get(key) {
-                    Some(val) => {
-                        if !match_pattern(node, val, env, class_env, local_env) {
-                            return false;
-                        }
-                    }
-                    _ => return false,
-                }
-            }
-            true
+            match_record_properties_pattern(pattern_props, obj_props, env, class_env, local_env)
         }
         (Node::RecordConstructor(_, _), _) => false,
         (Node::Int(a), Object::Int(b)) => a == b,
@@ -139,18 +153,8 @@ fn match_pattern(
         (Node::ParenExpr(node), rhs) => match_pattern(node, rhs, env, class_env, local_env),
         (Node::Spread(_), _) => todo!("AH"),
         (Node::Object(_), _) => todo!(),
-        (Node::RecordLiteral(lhs_props), Object::Instance(_, rhs_props)) => {
-            if lhs_props.len() != rhs_props.len() {
-                return false;
-            }
-            for ((lhs_name, lhs_expr), (rhs_name, rhs_expr)) in lhs_props.iter().zip(rhs_props) {
-                if lhs_name != rhs_name
-                    || !match_pattern(lhs_expr, rhs_expr, env, class_env, local_env)
-                {
-                    return false;
-                }
-            }
-            true
+        (Node::RecordLiteral(pattern_props), Object::Instance(_, obj_props)) => {
+            match_record_properties_pattern(pattern_props, obj_props, env, class_env, local_env)
         }
         (Node::RecordLiteral(_), Object::Nil) => todo!(),
         (Node::RecordLiteral(_), Object::Keyword(_)) => todo!(),

@@ -1,10 +1,8 @@
-class Object
-  def :say_hello ...args 2 -> args;
-end
+class User;
 
-[1; 2;] :any?
+[User{admin: true; age: 1;}; User{admin: false; age: 2;};] :map
   object
-    def 1 -> true;
-    def 2 -> false;
-  end.  
+    def {admin: ^true;} -> :admin;
+    def {age;} -> age;
+  end.
   :log;
